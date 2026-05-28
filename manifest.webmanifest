@@ -1,0 +1,13 @@
+{
+  "name": "The Tree — Family Archive",
+  "short_name": "The Tree",
+  "description": "A private family history archive — stories, lessons, and the people behind them.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f4ef",
+  "theme_color": "#2b2823",
+  "icons": [
+    { "src": "./icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable" }
+  ]
+}
