@@ -5,6 +5,7 @@
 import { el, clear } from '../dom.js';
 import { store, displayName, uid } from '../store.js';
 import { writePerson, writeUnion, importPhoto } from '../fsa.js';
+import { lookupPlace, parseLatLng } from '../geo.js';
 
 const STORY_PROMPTS = [
   'What were they known for?',
@@ -38,6 +39,8 @@ export function openPersonEditor({ root, person }) {
   f.birthPlace = el('input', { type: 'text', value: (data.birth && data.birth.place) || '' });
   f.death = el('input', { type: 'text', value: (data.death && data.death.date) || '' });
   f.deathPlace = el('input', { type: 'text', value: (data.death && data.death.place) || '' });
+  const birthGeo = makeGeo(f.birthPlace, data.birth);
+  const deathGeo = makeGeo(f.deathPlace, data.death);
   f.living = el('input', { type: 'checkbox' }); f.living.checked = data.living === true;
   f.talent = el('input', { type: 'text', value: ((data.tags && data.tags.talent) || []).join(', '), placeholder: 'running, painting…' });
   f.health = el('input', { type: 'text', value: ((data.tags && data.tags.health) || []).join(', '), placeholder: 'heart-disease…' });
@@ -81,8 +84,8 @@ export function openPersonEditor({ root, person }) {
     names.maiden = f.maiden.value.trim() || undefined;
     const aka = commaList(f.aka.value); names.also_known_as = aka.length ? aka : undefined;
     data.sex = f.sex.value || undefined;
-    data.birth = clean({ date: f.birth.value.trim(), place: f.birthPlace.value.trim() });
-    data.death = clean({ date: f.death.value.trim(), place: f.deathPlace.value.trim() });
+    data.birth = withCoords(clean({ date: f.birth.value.trim(), place: f.birthPlace.value.trim() }), birthGeo);
+    data.death = withCoords(clean({ date: f.death.value.trim(), place: f.deathPlace.value.trim() }), deathGeo);
     data.living = f.living.checked || undefined;
     const tags = data.tags || {};
     setTag(tags, 'talent', commaList(f.talent.value));
@@ -107,8 +110,11 @@ export function openPersonEditor({ root, person }) {
     row('Full name', f.display),
     el('div', { class: 'form-grid' }, row('Given', f.given), row('Family', f.family), row('Maiden', f.maiden), row('Sex', f.sex)),
     row('Also known as', f.aka),
-    el('div', { class: 'form-grid' }, row('Born', f.birth, 'e.g. 1938-04-12, 1938, or “abt 1850”'), row('Birthplace', f.birthPlace),
-      row('Died', f.death, 'leave blank if living'), row('Place of death', f.deathPlace)),
+    el('div', { class: 'form-grid' },
+      row('Born', f.birth, 'e.g. 1938-04-12, 1938, or “abt 1850”'),
+      row('Birthplace', el('div', {}, f.birthPlace, birthGeo.wrap), 'coordinates fill in automatically, offline'),
+      row('Died', f.death, 'leave blank if living'),
+      row('Place of death', el('div', {}, f.deathPlace, deathGeo.wrap))),
     el('div', { class: 'form-row' }, el('label', {}, el('span', {}, 'Living'), ' ', f.living)),
     el('div', { class: 'form-grid' }, row('Talents', f.talent), row('Health', f.health)),
     row('Story', el('div', {}, f.story, promptBar)),
@@ -177,6 +183,43 @@ function insert(textarea, snippet) {
   textarea.setSelectionRange(pos, pos);
 }
 function clean(obj) { const o = {}; for (const [k, v] of Object.entries(obj)) if (v) o[k] = v; return Object.keys(o).length ? o : undefined; }
+
+// A place field paired with an offline coordinate lookup. Typing a place and
+// tabbing out resolves coordinates from the bundled gazetteer (no network); the
+// user can also paste lat/lng by hand or click Locate to refresh.
+function makeGeo(placeInput, existing) {
+  const haveOld = existing && isFinite(+existing.lat) && isFinite(+existing.lng);
+  const coords = el('input', { type: 'text', placeholder: 'lat, lng', value: haveOld ? `${existing.lat}, ${existing.lng}` : '' });
+  const status = el('div', { class: 'coord-status' });
+  const set = (msg, cls) => { status.textContent = msg; status.className = 'coord-status' + (cls ? ' ' + cls : ''); };
+  async function locate(force) {
+    const place = placeInput.value.trim();
+    if (!place) { set(''); return; }
+    if (!force && parseLatLng(coords.value)) return; // keep coords we already have
+    set('Looking up…');
+    try {
+      const hit = await lookupPlace(place);
+      if (hit) { coords.value = `${hit.lat}, ${hit.lng}`; set(`Found ${hit.label}${hit.country ? ', ' + hit.country : ''} — pinned offline`, 'is-found'); }
+      else set('Not in the offline list — paste coordinates (right-click a spot in any map app → copy).', 'is-missing');
+    } catch (e) { set('Lookup unavailable: ' + e.message, 'is-missing'); }
+  }
+  placeInput.addEventListener('blur', () => locate(false));
+  coords.addEventListener('input', () => set(''));
+  const wrap = el('div', {},
+    el('div', { class: 'coord-row' }, coords, el('button', { type: 'button', class: 'btn btn-small', onclick: () => locate(true) }, 'Locate')),
+    status);
+  return { coords, wrap };
+}
+
+// Attach lat/lng from a geo field to a birth/death object (0 is a valid latitude,
+// so we set the numbers explicitly rather than routing them through clean()).
+function withCoords(obj, geo) {
+  const c = parseLatLng(geo.coords.value);
+  if (!c) return obj;
+  const o = obj || {};
+  o.lat = c.lat; o.lng = c.lng;
+  return o;
+}
 function setTag(tags, key, arr) { if (arr.length) tags[key] = arr; else delete tags[key]; }
 function unionLabel(u) {
   const names = (u.data.partners || []).map((id) => { const p = store.getPerson(id); return p ? displayName(p) : '?'; });

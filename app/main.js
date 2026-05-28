@@ -9,8 +9,11 @@ import {
 } from './fsa.js';
 import { renderTree } from './views/tree.js';
 import { renderPerson } from './views/person.js';
+import { renderTimeline } from './views/timeline.js';
+import { renderMap } from './views/map.js';
 import { renderLessons } from './views/lessons.js';
 import { renderQuery } from './views/query.js';
+import { renderBook } from './views/book.js';
 
 const app = { mode: null, root: null, archiveName: '', focus: null };
 let savedHandle = null;
@@ -64,8 +67,11 @@ function renderNav() {
   const route = (location.hash.split('/')[1] || 'tree');
   nav.append(
     navLink('Tree', '#/tree', route === 'tree'),
+    navLink('Timeline', '#/timeline', route === 'timeline'),
+    navLink('Map', '#/map', route === 'map'),
     navLink('Lessons', '#/lessons', route === 'lessons'),
     navLink('People', '#/query', route === 'query'),
+    navLink('Book', '#/book', route === 'book'),
   );
 
   if (app.mode === 'archive') {
@@ -172,8 +178,11 @@ function router() {
   const id = parts[1] ? decodeURIComponent(parts[1]) : null;
   clear(view);
   if (route === 'person' && id) renderPerson(view, id);
+  else if (route === 'timeline') renderTimeline(view);
+  else if (route === 'map') renderMap(view);
   else if (route === 'lessons') renderLessons(view);
   else if (route === 'query') renderQuery(view);
+  else if (route === 'book') renderBook(view);
   else renderTree(view, (id && store.getPerson(id)) ? id : defaultFocus());
   renderNav();
   window.scrollTo(0, 0);
