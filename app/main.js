@@ -1,0 +1,201 @@
+// Bootstrap, app state, landing screen, top chrome, and hash routing.
+
+import { el, clear, go } from './dom.js';
+import { store, displayName } from './store.js';
+import { sampleDocs, SAMPLE_FOCUS } from './sample-data.js';
+import {
+  isSupported, getSavedHandle, pickArchive, verifyPermission,
+  ensureStructure, loadArchive, readManifest, writeManifest,
+} from './fsa.js';
+import { renderTree } from './views/tree.js';
+import { renderPerson } from './views/person.js';
+import { renderLessons } from './views/lessons.js';
+import { renderQuery } from './views/query.js';
+
+const app = { mode: null, root: null, archiveName: '', focus: null };
+let savedHandle = null;
+
+export function context() { return { root: app.root, mode: app.mode }; }
+export function defaultFocus() {
+  if (app.focus && store.getPerson(app.focus)) return app.focus;
+  const first = store.allPeople()[0];
+  return first ? first.id : null;
+}
+
+// ---------- chrome ----------
+function renderChrome() {
+  const root = document.getElementById('app');
+  clear(root);
+  root.append(
+    el('header', { class: 'topbar' },
+      el('a', { class: 'brand', href: '#/' },
+        el('span', { class: 'brand-mark', 'aria-hidden': 'true' }, treeGlyph()),
+        el('span', { class: 'brand-word' }, 'The Tree')),
+      el('nav', { class: 'mainnav', id: 'mainnav' }),
+      el('div', { class: 'topbar-right', id: 'topbar-right' })),
+    el('main', { id: 'view', class: 'view' }),
+    el('footer', { class: 'appfoot' }, el('span', {}, 'A private family archive')),
+  );
+  renderNav();
+}
+
+function treeGlyph() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('width', '20'); svg.setAttribute('height', '20');
+  const p = document.createElementNS(NS, 'path');
+  p.setAttribute('d', 'M12 2a4 4 0 0 1 3.5 6 4 4 0 0 1-2.5 7.4V22h-2v-6.6A4 4 0 0 1 8.5 8 4 4 0 0 1 12 2z');
+  p.setAttribute('fill', 'currentColor');
+  svg.append(p);
+  return svg;
+}
+
+function navLink(label, path, active) {
+  return el('a', { class: 'navlink' + (active ? ' is-active' : ''), href: path }, label);
+}
+
+function renderNav() {
+  const nav = document.getElementById('mainnav');
+  const right = document.getElementById('topbar-right');
+  if (!nav || !right) return;
+  clear(nav); clear(right);
+  if (store.size === 0 && app.mode !== 'archive') return; // landing: bare header
+
+  const route = (location.hash.split('/')[1] || 'tree');
+  nav.append(
+    navLink('Tree', '#/tree', route === 'tree'),
+    navLink('Lessons', '#/lessons', route === 'lessons'),
+    navLink('People', '#/query', route === 'query'),
+  );
+
+  if (app.mode === 'archive') {
+    right.append(
+      el('span', { class: 'archive-pill', title: 'Saving to ' + app.archiveName },
+        el('span', { class: 'dot' }), app.archiveName || 'Archive'));
+  } else {
+    right.append(el('span', { class: 'demo-pill' }, 'Demo data — not saved'));
+    if (isSupported()) right.append(el('button', { class: 'btn btn-small', onclick: () => connect() }, 'Open a folder'));
+  }
+  right.append(el('button', { class: 'btn btn-small', onclick: () => addPerson() }, '+ Add person'));
+}
+
+// ---------- landing ----------
+function renderLanding(view) {
+  clear(view);
+  const actions = el('div', { class: 'landing-actions' });
+  if (isSupported()) {
+    actions.append(el('button', { class: 'btn btn-primary', onclick: () => connect() }, 'Open your archive folder'));
+    if (savedHandle) actions.append(el('button', { class: 'btn', onclick: () => reconnect() }, `Reconnect to “${savedHandle.name}”`));
+  }
+  actions.append(el('button', { class: 'btn btn-ghost', onclick: () => enterDemo() }, 'Explore the demo family'));
+
+  const notice = isSupported() ? null
+    : el('p', { class: 'banner' }, 'Editing requires Chrome or Edge on a computer. You can still explore the demo below.');
+
+  view.append(el('section', { class: 'landing' },
+    el('h1', { class: 'landing-title' }, 'The Tree'),
+    el('p', { class: 'landing-sub' },
+      'A private archive of who your family was — their stories, their hard-won lessons, and the mistakes worth not repeating.'),
+    notice,
+    actions,
+    el('p', { class: 'landing-fine' }, 'Your data lives as plain files in a folder you choose. Nothing leaves your computer.'),
+  ));
+}
+
+function renderEmptyArchive(view) {
+  clear(view);
+  view.append(el('section', { class: 'landing' },
+    el('h1', { class: 'landing-title' }, app.archiveName || 'Your archive'),
+    el('p', { class: 'landing-sub' }, 'This archive is empty. Add the first person to begin.'),
+    el('div', { class: 'landing-actions' },
+      el('button', { class: 'btn btn-primary', onclick: () => addPerson() }, '+ Add the first person')),
+  ));
+}
+
+// ---------- data loading ----------
+function enterDemo() {
+  store.loadDocs(sampleDocs());
+  app.mode = 'demo'; app.root = null; app.focus = SAMPLE_FOCUS;
+  go(`#/tree/${SAMPLE_FOCUS}`);
+  router();
+}
+
+async function useRoot(root) {
+  app.root = root; app.mode = 'archive'; app.archiveName = root.name;
+  await ensureStructure(root);
+  const { docs, skipped } = await loadArchive(root);
+  store.loadDocs(docs);
+  if (skipped.length) console.warn('The Tree: skipped unparseable files', skipped);
+  const man = (await readManifest(root)) || {};
+  app.focus = (man.focus && store.getPerson(man.focus)) ? man.focus : defaultFocus();
+  await writeManifest(root, { schemaVersion: 1, appVersion: 1, lastOpened: new Date().toISOString(), focus: app.focus });
+  go(app.focus ? `#/tree/${app.focus}` : '#/');
+  router();
+}
+
+async function connect() {
+  try {
+    const root = await pickArchive();
+    if (!(await verifyPermission(root))) { alert('Permission to the folder was not granted.'); return; }
+    savedHandle = root;
+    await useRoot(root);
+  } catch (e) {
+    if (e && e.name === 'AbortError') return; // user cancelled the picker
+    console.error(e); alert('Could not open that folder: ' + e.message);
+  }
+}
+
+async function reconnect() {
+  try {
+    if (!savedHandle) return;
+    if (!(await verifyPermission(savedHandle))) { alert('Permission was not granted.'); return; }
+    await useRoot(savedHandle);
+  } catch (e) { console.error(e); alert('Could not reconnect: ' + e.message); }
+}
+
+async function addPerson() {
+  const { openPersonEditor } = await import('./views/edit.js');
+  openPersonEditor({ root: app.root, person: null });
+}
+
+// ---------- routing ----------
+function router() {
+  const view = document.getElementById('view');
+  if (!view) return;
+  if (store.size === 0) {
+    if (app.mode === 'archive') renderEmptyArchive(view); else renderLanding(view);
+    renderNav();
+    return;
+  }
+  const parts = location.hash.replace(/^#\/?/, '').split('/'); // e.g. ['tree','p-marcus']
+  const route = parts[0] || 'tree';
+  const id = parts[1] ? decodeURIComponent(parts[1]) : null;
+  clear(view);
+  if (route === 'person' && id) renderPerson(view, id);
+  else if (route === 'lessons') renderLessons(view);
+  else if (route === 'query') renderQuery(view);
+  else renderTree(view, (id && store.getPerson(id)) ? id : defaultFocus());
+  renderNav();
+  window.scrollTo(0, 0);
+}
+
+// ---------- boot ----------
+async function boot() {
+  renderChrome();
+  if (isSupported()) {
+    try { savedHandle = await getSavedHandle(); } catch { savedHandle = null; }
+  }
+  window.addEventListener('hashchange', router);
+  window.addEventListener('data:changed', (e) => {
+    const focus = e.detail && e.detail.focus;
+    if (focus) go(`#/person/${focus}`); else router();
+    router();
+  });
+  router();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+}
+
+boot();
