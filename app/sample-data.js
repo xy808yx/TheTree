@@ -1,7 +1,8 @@
 // A small but deliberately messy sample family, used for the first-run demo and
 // for verification. It exercises: remarriage, adoption, step-child, half-sibling,
-// unknown parentage, partial/approximate dates, namespaced tags, and tagged
-// lessons/mistakes. Each child is listed in exactly one union (their parents_union).
+// unknown parentage, partial/approximate dates, namespaced tags, tagged
+// lessons/mistakes, and (for the map) birth/death coordinates. Each child is
+// listed in exactly one union (their parents_union).
 
 import { parseDoc } from './parse.js';
 
@@ -12,8 +13,8 @@ id: p-samuel
 slug: samuel-vance
 names: { display: "Samuel Vance", given: "Samuel", family: "Vance" }
 sex: M
-birth: { date: "1888", place: "Lanark, Scotland" }
-death: { date: "1951", place: "Hamilton, Canada" }
+birth: { date: "1888", place: "Lanark, Scotland", lat: 55.674, lng: -3.781 }
+death: { date: "1951", place: "Hamilton, Canada", lat: 43.25, lng: -79.85 }
 living: false
 unions: ["u-samuel-mary"]
 parents_union: null
@@ -29,8 +30,8 @@ id: p-mary
 slug: mary-vance
 names: { display: "Mary Vance", given: "Mary", family: "Vance", maiden: "Doyle" }
 sex: F
-birth: { date: "1892", place: "Cork, Ireland" }
-death: { date: "1970", place: "Hamilton, Canada" }
+birth: { date: "1892", place: "Cork, Ireland", lat: 51.898, lng: -8.475 }
+death: { date: "1970", place: "Hamilton, Canada", lat: 43.25, lng: -79.85 }
 living: false
 tags: { faith: ["devout"] }
 unions: ["u-samuel-mary"]
@@ -47,8 +48,8 @@ id: p-adeyemi
 slug: adeyemi-okafor
 names: { display: "Adeyemi Okafor", given: "Adeyemi", family: "Okafor" }
 sex: M
-birth: { date: "abt 1890", place: "Abeokuta, Nigeria" }
-death: { date: "1960", place: "Lagos, Nigeria" }
+birth: { date: "abt 1890", place: "Abeokuta, Nigeria", lat: 7.156, lng: 3.349 }
+death: { date: "1960", place: "Lagos, Nigeria", lat: 6.455, lng: 3.394 }
 living: false
 tags: { talent: ["oratory"] }
 unions: ["u-adeyemi-grace"]
@@ -62,8 +63,8 @@ id: p-grace
 slug: grace-okafor
 names: { display: "Grace Okafor", given: "Grace", family: "Okafor", maiden: "Balogun" }
 sex: F
-birth: { date: "1895", place: "Ibadan, Nigeria" }
-death: { date: "1972", place: "Lagos, Nigeria" }
+birth: { date: "1895", place: "Ibadan, Nigeria", lat: 7.378, lng: 3.947 }
+death: { date: "1972", place: "Lagos, Nigeria", lat: 6.455, lng: 3.394 }
 living: false
 unions: ["u-adeyemi-grace"]
 parents_union: null
@@ -80,8 +81,8 @@ id: p-thomas
 slug: thomas-vance
 names: { display: "Thomas Vance", given: "Thomas", family: "Vance", also_known_as: ["Tom"] }
 sex: M
-birth: { date: "1920-03-02", place: "Hamilton, Canada" }
-death: { date: "1995", place: "Vancouver, Canada" }
+birth: { date: "1920-03-02", place: "Hamilton, Canada", lat: 43.25, lng: -79.85 }
+death: { date: "1995", place: "Vancouver, Canada", lat: 49.25, lng: -123.119 }
 living: false
 tags: { talent: ["carpentry"], health: ["heart-disease"] }
 photos:
@@ -102,8 +103,8 @@ id: p-rose
 slug: rose-vance
 names: { display: "Rose Vance", given: "Rose", family: "Vance", maiden: "Whitfield" }
 sex: F
-birth: { date: "1922", place: "Halifax, Canada" }
-death: { date: "1958", place: "Hamilton, Canada" }
+birth: { date: "1922", place: "Halifax, Canada", lat: 44.648, lng: -63.575 }
+death: { date: "1958", place: "Hamilton, Canada", lat: 43.25, lng: -79.85 }
 living: false
 unions: ["u-thomas-rose"]
 parents_union: null
@@ -116,8 +117,8 @@ id: p-eleanor
 slug: eleanor-vance
 names: { display: "Eleanor Vance", given: "Eleanor", family: "Vance", maiden: "Okafor", also_known_as: ["Nell"] }
 sex: F
-birth: { date: "1938-04-12", place: "Lagos, Nigeria" }
-death: { date: "abt 2019", place: "Vancouver, Canada" }
+birth: { date: "1938-04-12", place: "Lagos, Nigeria", lat: 6.455, lng: 3.394 }
+death: { date: "abt 2019", place: "Vancouver, Canada", lat: 49.25, lng: -123.119 }
 living: false
 tags: { talent: ["painting", "languages"], health: ["breast-cancer-survivor"] }
 photos:
@@ -140,7 +141,7 @@ id: p-sam2
 slug: sam-vance
 names: { display: "Sam Vance", given: "Samuel", family: "Vance" }
 sex: M
-birth: { date: "1957", place: "Hamilton, Canada" }
+birth: { date: "1957", place: "Hamilton, Canada", lat: 43.25, lng: -79.85 }
 living: true
 tags: { talent: ["boxing"] }
 unions: []
@@ -155,7 +156,7 @@ id: p-marcus
 slug: marcus-vance
 names: { display: "Marcus Vance", given: "Marcus", family: "Vance" }
 sex: M
-birth: { date: "1965-09-18", place: "Vancouver, Canada" }
+birth: { date: "1965-09-18", place: "Vancouver, Canada", lat: 49.25, lng: -123.119 }
 living: true
 tags: { talent: ["running", "writing"] }
 unions: ["u-marcus-lerato"]
@@ -172,7 +173,7 @@ id: p-grace2
 slug: grace-vance
 names: { display: "Grace Vance", given: "Grace", family: "Vance" }
 sex: F
-birth: { date: "1968", place: "Vancouver, Canada" }
+birth: { date: "1968", place: "Vancouver, Canada", lat: 49.25, lng: -123.119 }
 living: true
 tags: { talent: ["medicine"] }
 unions: []
@@ -186,7 +187,7 @@ id: p-daniel
 slug: daniel-vance
 names: { display: "Daniel Vance", given: "Daniel", family: "Vance" }
 sex: M
-birth: { date: "1960", place: "Lagos, Nigeria" }
+birth: { date: "1960", place: "Lagos, Nigeria", lat: 6.455, lng: 3.394 }
 living: true
 unions: []
 parents_union: "u-thomas-eleanor"
@@ -200,7 +201,7 @@ id: p-lerato
 slug: lerato-vance
 names: { display: "Lerato Vance", given: "Lerato", family: "Vance", maiden: "Molefe" }
 sex: F
-birth: { date: "1967", place: "Gaborone, Botswana" }
+birth: { date: "1967", place: "Gaborone, Botswana", lat: -24.658, lng: 25.912 }
 living: true
 tags: { talent: ["medicine"] }
 unions: ["u-marcus-lerato"]
@@ -215,7 +216,7 @@ id: p-thandi
 slug: thandi-vance
 names: { display: "Thandi Vance", given: "Thandi", family: "Vance" }
 sex: F
-birth: { date: "1992", place: "Vancouver, Canada" }
+birth: { date: "1992", place: "Vancouver, Canada", lat: 49.25, lng: -123.119 }
 living: true
 tags: { talent: ["running", "mathematics"] }
 unions: []
@@ -229,7 +230,7 @@ id: p-kofi
 slug: kofi-vance
 names: { display: "Kofi Vance", given: "Kofi", family: "Vance" }
 sex: M
-birth: { date: "1995", place: "Vancouver, Canada" }
+birth: { date: "1995", place: "Vancouver, Canada", lat: 49.25, lng: -123.119 }
 living: true
 tags: { talent: ["music"] }
 unions: []

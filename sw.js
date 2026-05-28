@@ -1,16 +1,21 @@
 // Offline app shell. Precaches the app CODE only — family data is read straight
 // from disk via the File System Access API and photos via object URLs, so they
 // never pass through here. Bump CACHE to ship updated code.
-const CACHE = 'thetree-v2';
+const CACHE = 'thetree-v4';
 const ASSETS = [
   './', './index.html', './styles.css', './manifest.webmanifest', './icon.svg',
-  './app/main.js', './app/dom.js', './app/store.js', './app/parse.js', './app/fsa.js', './app/sample-data.js',
-  './app/views/tree.js', './app/views/person.js', './app/views/lessons.js', './app/views/query.js', './app/views/edit.js',
+  './app/main.js', './app/dom.js', './app/store.js', './app/parse.js', './app/fsa.js', './app/geo.js', './app/gedcom.js', './app/sample-data.js',
+  './app/views/tree.js', './app/views/person.js', './app/views/timeline.js', './app/views/map.js',
+  './app/views/lessons.js', './app/views/query.js', './app/views/edit.js', './app/views/book.js',
   './app/vendor/marked.esm.js', './app/vendor/js-yaml.js', './app/vendor/purify.es.js',
+  './app/vendor/cities.js', './app/vendor/worldmap.js',
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // cache:'reload' so a freshly bumped SW never re-caches a stale HTTP response.
+  e.waitUntil(caches.open(CACHE)
+    .then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
