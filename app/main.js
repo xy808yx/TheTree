@@ -1,6 +1,6 @@
 // Bootstrap, app state, landing screen, top chrome, and hash routing.
 
-import { el, clear, go } from './dom.js';
+import { el, clear, go, toast } from './dom.js';
 import { store, displayName } from './store.js';
 import { sampleDocs, SAMPLE_FOCUS } from './sample-data.js';
 import {
@@ -79,10 +79,11 @@ function renderNav() {
       el('span', { class: 'archive-pill', title: 'Saving to ' + app.archiveName },
         el('span', { class: 'dot' }), app.archiveName || 'Archive'));
   } else {
-    right.append(el('span', { class: 'demo-pill' }, 'Demo data — not saved'));
+    right.append(el('span', { class: 'demo-pill', title: 'You are exploring sample data. Nothing you change is saved.' },
+      el('span', { class: 'dot' }), 'Demo — not saved'));
     if (isSupported()) right.append(el('button', { class: 'btn btn-small', onclick: () => connect() }, 'Open a folder'));
   }
-  right.append(el('button', { class: 'btn btn-small', onclick: () => addPerson() }, '+ Add person'));
+  right.append(el('button', { class: 'btn btn-small btn-primary', onclick: () => addPerson() }, '+ Add person'));
 }
 
 // ---------- landing ----------
@@ -90,31 +91,51 @@ function renderLanding(view) {
   clear(view);
   const actions = el('div', { class: 'landing-actions' });
   if (isSupported()) {
-    actions.append(el('button', { class: 'btn btn-primary', onclick: () => connect() }, 'Open your archive folder'));
-    if (savedHandle) actions.append(el('button', { class: 'btn', onclick: () => reconnect() }, `Reconnect to “${savedHandle.name}”`));
+    // Prefer reconnect if we have a saved folder — it's the returning-user path.
+    if (savedHandle) {
+      actions.append(el('button', { class: 'btn btn-primary btn-large', onclick: () => reconnect() },
+        `Open “${savedHandle.name}”`));
+      actions.append(el('button', { class: 'btn', onclick: () => connect() }, 'Open a different folder'));
+    } else {
+      actions.append(el('button', { class: 'btn btn-primary btn-large', onclick: () => connect() },
+        'Open your archive folder'));
+    }
+    actions.append(el('button', { class: 'btn btn-ghost', onclick: () => enterDemo() }, 'Or explore the demo'));
+  } else {
+    // Read-only browsers (Safari, Firefox, mobile): demo IS the primary action.
+    actions.append(el('button', { class: 'btn btn-primary btn-large', onclick: () => enterDemo() }, 'Explore the demo family'));
   }
-  actions.append(el('button', { class: 'btn btn-ghost', onclick: () => enterDemo() }, 'Explore the demo family'));
 
   const notice = isSupported() ? null
-    : el('p', { class: 'banner' }, 'Editing requires Chrome or Edge on a computer. You can still explore the demo below.');
+    : el('p', { class: 'banner' },
+        el('span', { class: 'banner-icon', 'aria-hidden': 'true' }, '◆'),
+        el('span', {},
+          el('strong', {}, 'Editing requires Chrome or Edge on a desktop. '),
+          'On this browser you can read the demo. To start your own archive, open this page in Chrome or Edge on a Mac, Windows, or Linux computer.'));
 
   view.append(el('section', { class: 'landing' },
+    el('div', { class: 'landing-mark', 'aria-hidden': 'true' }, '· · ·'),
     el('h1', { class: 'landing-title' }, 'The Tree'),
     el('p', { class: 'landing-sub' },
-      'A private archive of who your family was — their stories, their hard-won lessons, and the mistakes worth not repeating.'),
+      'A quiet archive of who your family was — their stories, their hard-won lessons, and the mistakes worth not repeating.'),
     notice,
     actions,
-    el('p', { class: 'landing-fine' }, 'Your data lives as plain files in a folder you choose. Nothing leaves your computer.'),
+    el('hr', { class: 'landing-rule' }),
+    el('p', { class: 'landing-fine' }, 'Plain files in a folder you choose. Nothing leaves your computer.'),
   ));
 }
 
 function renderEmptyArchive(view) {
   clear(view);
   view.append(el('section', { class: 'landing' },
-    el('h1', { class: 'landing-title' }, app.archiveName || 'Your archive'),
-    el('p', { class: 'landing-sub' }, 'This archive is empty. Add the first person to begin.'),
+    el('div', { class: 'landing-mark', 'aria-hidden': 'true' }, '· · ·'),
+    el('p', { class: 'results-caption' }, 'Your archive'),
+    el('h1', { class: 'landing-title' }, app.archiveName || 'Untitled'),
+    el('p', { class: 'landing-sub' }, 'An empty room. Start by adding one person — a name and a single story is enough. You can fill the rest in later.'),
     el('div', { class: 'landing-actions' },
-      el('button', { class: 'btn btn-primary', onclick: () => addPerson() }, '+ Add the first person')),
+      el('button', { class: 'btn btn-primary btn-large', onclick: () => addPerson() }, '+ Add the first person')),
+    el('hr', { class: 'landing-rule' }),
+    el('p', { class: 'landing-fine' }, 'Files will be written to this folder under ', el('code', {}, 'people/'), ' and ', el('code', {}, 'unions/'), '. Backups land in ', el('code', {}, '_backups/'), '.'),
   ));
 }
 
@@ -142,21 +163,33 @@ async function useRoot(root) {
 async function connect() {
   try {
     const root = await pickArchive();
-    if (!(await verifyPermission(root))) { alert('Permission to the folder was not granted.'); return; }
+    if (!(await verifyPermission(root))) {
+      toast('Folder access wasn’t granted. Click the button again and allow read & write to use this folder.', { kind: 'error' });
+      return;
+    }
     savedHandle = root;
     await useRoot(root);
+    toast(`Opened “${root.name}”`, { kind: 'success' });
   } catch (e) {
-    if (e && e.name === 'AbortError') return; // user cancelled the picker
-    console.error(e); alert('Could not open that folder: ' + e.message);
+    if (e && e.name === 'AbortError') return; // user cancelled the picker — no message
+    console.error(e);
+    toast('Could not open that folder: ' + e.message, { kind: 'error' });
   }
 }
 
 async function reconnect() {
   try {
     if (!savedHandle) return;
-    if (!(await verifyPermission(savedHandle))) { alert('Permission was not granted.'); return; }
+    if (!(await verifyPermission(savedHandle))) {
+      toast(`Couldn’t reopen “${savedHandle.name}”. The browser needs you to confirm access again.`, { kind: 'error' });
+      return;
+    }
     await useRoot(savedHandle);
-  } catch (e) { console.error(e); alert('Could not reconnect: ' + e.message); }
+    toast(`Opened “${savedHandle.name}”`, { kind: 'success' });
+  } catch (e) {
+    console.error(e);
+    toast('Could not reconnect: ' + e.message, { kind: 'error' });
+  }
 }
 
 async function addPerson() {

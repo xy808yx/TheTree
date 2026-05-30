@@ -10,9 +10,13 @@ export function renderLessons(view) {
   const themes = [...THEMES, ...Object.keys(groups).filter((t) => !THEMES.includes(t))].filter((t) => groups[t] && groups[t].length);
 
   const wrap = el('section', { class: 'lessons' },
-    el('h1', { class: 'landing-title', style: { fontSize: '2.2rem', textAlign: 'left' } }, 'Family Lessons'),
+    el('h1', { class: 'page-title' }, 'Family Lessons'),
     el('p', { class: 'lessons-intro' },
-      'Hard-won wisdom and cautionary tales, gathered from across the family and grouped by theme — written on each person, collected here.'));
+      'Hard-won wisdom and cautionary tales, gathered from across the family and grouped by theme — written on each person, collected here.'),
+    el('div', { class: 'map-legend', style: { marginBottom: 'var(--s-5)' } },
+      el('span', { class: 'map-legend-item' }, el('span', { class: 'map-legend-swatch', style: { background: 'var(--gold)' } }), 'Lesson'),
+      el('span', { class: 'map-legend-item' }, el('span', { class: 'map-legend-swatch', style: { background: 'var(--oxblood)' } }), 'Mistake (shown first — the via-negativa lens)'),
+    ));
 
   if (!themes.length) {
     wrap.append(el('p', { class: 'empty-note' },

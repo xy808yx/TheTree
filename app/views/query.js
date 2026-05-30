@@ -25,7 +25,7 @@ export function renderQuery(view) {
       people = store.allPeople().sort((a, b) => displayName(a).localeCompare(displayName(b)));
       caption = `All ${people.length} people`;
     }
-    results.append(el('div', { class: 'theme-count', style: { marginBottom: '.5rem' } }, caption));
+    results.append(el('div', { class: 'results-caption' }, caption));
     if (!people.length) { results.append(el('p', { class: 'empty-note' }, 'No one matches.')); return; }
     for (const p of people) {
       results.append(el('a', { class: 'person-row', href: `#/person/${p.id}` },
@@ -51,7 +51,8 @@ export function renderQuery(view) {
   });
 
   const wrap = el('section', { class: 'query' },
-    el('h1', { class: 'landing-title', style: { fontSize: '2.2rem', textAlign: 'left' } }, 'People'),
+    el('h1', { class: 'page-title' }, 'People'),
+    el('p', { class: 'page-intro' }, 'Search by name, or browse by trait — talents the family shared, or health threads to know about.'),
     search,
     tags.length ? el('p', { class: 'section-title', style: { marginTop: '1.25rem' } }, 'Browse by trait') : null,
     cloud,

@@ -121,16 +121,31 @@ export function renderTree(view, focusId) {
 
   const wrap = el('div', { class: 'tree-wrap' }, canvas);
 
-  const setScale = (s) => { scale = Math.min(1.6, Math.max(0.4, s)); canvas.style.transform = `scale(${scale})`; };
+  const zoomLabel = el('span', { class: 'tree-zoom-label', title: 'Zoom' }, '100%');
+  const setScale = (s) => {
+    scale = Math.min(1.6, Math.max(0.4, s));
+    canvas.style.transform = `scale(${scale})`;
+    zoomLabel.textContent = Math.round(scale * 100) + '%';
+  };
+  const zoomGroup = el('div', { class: 'btn-group', role: 'group', 'aria-label': 'Zoom' },
+    el('button', { class: 'btn btn-small', title: 'Zoom out', 'aria-label': 'Zoom out', onclick: () => setScale(scale - 0.15) }, '−'),
+    zoomLabel,
+    el('button', { class: 'btn btn-small', title: 'Reset zoom', onclick: () => setScale(1) }, 'Reset'),
+    el('button', { class: 'btn btn-small', title: 'Zoom in', 'aria-label': 'Zoom in', onclick: () => setScale(scale + 0.15) }, '+'));
+
   const toolbar = el('div', { class: 'tree-toolbar' },
     el('span', { class: 'tree-crumb' }, 'Centered on ', el('strong', {}, displayName(focus)), ' — click any card to re-center'),
     el('a', { class: 'btn btn-small', href: `#/person/${focus.id}` }, 'Open profile'),
-    el('span', { style: { flex: '1' } }),
-    el('button', { class: 'btn btn-small', onclick: () => setScale(scale - 0.15) }, '−'),
-    el('button', { class: 'btn btn-small', onclick: () => setScale(1) }, 'Reset'),
-    el('button', { class: 'btn btn-small', onclick: () => setScale(scale + 0.15) }, '+'));
+    el('span', { class: 'toolbar-spacer' }),
+    zoomGroup);
 
-  view.append(toolbar, wrap);
+  const legend = el('div', { class: 'tree-legend' },
+    el('span', { class: 'tree-legend-item' }, el('span', { class: 'tree-legend-swatch sex-F' }), 'Female'),
+    el('span', { class: 'tree-legend-item' }, el('span', { class: 'tree-legend-swatch sex-M' }), 'Male'),
+    el('span', { class: 'tree-legend-item' }, el('span', { class: 'tree-legend-swatch focus' }), 'Click a card to re-center'),
+  );
+
+  view.append(toolbar, wrap, legend);
 }
 
 function card(n, focusId) {

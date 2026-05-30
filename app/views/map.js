@@ -4,7 +4,7 @@
 // from birthplace to where they died. Coordinates are filled in on entry via the
 // offline gazetteer (see geo.js / edit.js); nothing here touches the network.
 
-import { el, clear, go } from '../dom.js';
+import { el, clear } from '../dom.js';
 import { store, displayName, lifespan } from '../store.js';
 import { LAND } from '../vendor/worldmap.js';
 
@@ -121,14 +121,25 @@ export function renderMap(view) {
 
   const canvas = el('div', { class: 'map-canvas', style: { width: W + 'px', height: H + 'px' } }, svg);
   const mapWrap = el('div', { class: 'map-wrap' }, canvas);
-  const setScale = (z) => { scale = Math.min(4, Math.max(0.5, z)); canvas.style.transform = `scale(${scale})`; canvas.style.width = (W * scale) + 'px'; canvas.style.height = (H * scale) + 'px'; };
+  const zoomLabel = el('span', { class: 'tree-zoom-label', title: 'Zoom' }, '100%');
+  const setScale = (z) => {
+    scale = Math.min(4, Math.max(0.5, z));
+    canvas.style.transform = `scale(${scale})`;
+    canvas.style.width = (W * scale) + 'px';
+    canvas.style.height = (H * scale) + 'px';
+    zoomLabel.textContent = Math.round(scale * 100) + '%';
+  };
+
+  const zoomGroup = el('div', { class: 'btn-group', role: 'group', 'aria-label': 'Zoom' },
+    el('button', { class: 'btn btn-small', title: 'Zoom out', 'aria-label': 'Zoom out', onclick: () => setScale(scale - 0.3) }, '−'),
+    zoomLabel,
+    el('button', { class: 'btn btn-small', title: 'Reset zoom', onclick: () => setScale(1) }, 'Reset'),
+    el('button', { class: 'btn btn-small', title: 'Zoom in', 'aria-label': 'Zoom in', onclick: () => setScale(scale + 0.3) }, '+'));
 
   const toolbar = el('div', { class: 'map-toolbar' },
     el('span', { class: 'tree-crumb' }, `${places.length} ${places.length === 1 ? 'place' : 'places'} · ${journeys.length} ${journeys.length === 1 ? 'journey' : 'journeys'}`),
-    el('span', { style: { flex: '1' } }),
-    el('button', { class: 'btn btn-small', onclick: () => setScale(scale - 0.3) }, '−'),
-    el('button', { class: 'btn btn-small', onclick: () => setScale(1) }, 'Reset'),
-    el('button', { class: 'btn btn-small', onclick: () => setScale(scale + 0.3) }, '+'));
+    el('span', { class: 'toolbar-spacer' }),
+    zoomGroup);
 
   // default side content: the journeys, read as a list
   clear(detail);
@@ -142,10 +153,16 @@ export function renderMap(view) {
     }
     detail.append(jl);
   } else {
-    detail.append(el('p', { class: 'page-intro' }, 'Tap a marker to see who lived there.'));
+    detail.append(el('p', { class: 'page-intro' }, 'Select a marker to see who lived there.'));
   }
 
-  wrap.append(toolbar, el('div', { class: 'map-layout' }, mapWrap, detail));
+  const legend = el('div', { class: 'map-legend' },
+    el('span', { class: 'map-legend-item' }, el('span', { class: 'map-legend-swatch' }), 'A place lived'),
+    el('span', { class: 'map-legend-item' }, el('span', { class: 'map-legend-swatch', style: { transform: 'scale(1.6)' } }), 'Larger = more people'),
+    el('span', { class: 'map-legend-item' }, el('span', { class: 'map-legend-swatch arc' }), 'A life’s journey'),
+  );
+
+  wrap.append(toolbar, el('div', { class: 'map-layout' }, mapWrap, detail), legend);
 
   if (unlocated.length) {
     wrap.append(el('p', { class: 'map-unlocated' },

@@ -1,9 +1,12 @@
-// Person editor: core facts, trait tags, a story box with an evocative-prompt
-// library, photos, and family links. Writes plain files when an archive folder
-// is connected; in demo mode it updates the in-memory store only (not saved).
+// Person editor: core facts, story, family links, and optional details.
+// Fields are grouped into a short Identity stack the user sees first, then
+// Dates & Places, Story, Family — with Tags + Photos tucked into "Optional
+// details" so a first-time add is just name → maybe a date → maybe a story.
+// Writes plain files when an archive folder is connected; in demo mode it
+// updates the in-memory store only (and a toast reminds the user).
 
-import { el, clear } from '../dom.js';
-import { store, displayName, uid } from '../store.js';
+import { el, clear, toast } from '../dom.js';
+import { store, displayName, uid, THEMES } from '../store.js';
 import { writePerson, writeUnion, importPhoto } from '../fsa.js';
 import { lookupPlace, parseLatLng } from '../geo.js';
 
@@ -26,58 +29,102 @@ export function openPersonEditor({ root, person }) {
   const body0 = person ? person.body : '';
 
   const f = {}; // field refs
-  const row = (label, input, hint) => el('div', { class: 'form-row' },
-    el('label', {}, label), input, hint ? el('div', { class: 'hint' }, hint) : null);
+  const row = (label, input, hint, required) => el('div', { class: 'form-row' },
+    el('label', {}, label, required ? el('span', { class: 'req' }, '*') : null),
+    input,
+    hint ? el('div', { class: 'hint' }, hint) : null);
 
-  f.display = el('input', { type: 'text', value: names.display || '', placeholder: 'e.g. Eleanor Vance' });
-  f.given = el('input', { type: 'text', value: names.given || '' });
-  f.family = el('input', { type: 'text', value: names.family || '' });
-  f.maiden = el('input', { type: 'text', value: names.maiden || '' });
-  f.aka = el('input', { type: 'text', value: (names.also_known_as || []).join(', '), placeholder: 'comma-separated' });
-  f.sex = el('select', {}, ...['', 'F', 'M', 'other'].map((v) => el('option', { value: v, selected: (data.sex || '') === v || undefined }, v || '—')));
-  f.birth = el('input', { type: 'text', value: (data.birth && data.birth.date) || '' });
-  f.birthPlace = el('input', { type: 'text', value: (data.birth && data.birth.place) || '' });
-  f.death = el('input', { type: 'text', value: (data.death && data.death.date) || '' });
+  // --- Identity ---
+  f.display = el('input', { type: 'text', value: names.display || '', placeholder: 'e.g. Eleanor Vance', autocomplete: 'off' });
+  f.given = el('input', { type: 'text', value: names.given || '', autocomplete: 'off' });
+  f.family = el('input', { type: 'text', value: names.family || '', autocomplete: 'off' });
+  f.sex = el('select', {}, ...['', 'F', 'M', 'other'].map((v) =>
+    el('option', { value: v, selected: (data.sex || '') === v || undefined }, v ? ({F:'Female', M:'Male', other:'Other'})[v] : '—')));
+
+  // --- Dates & places ---
+  f.birth = el('input', { type: 'text', value: (data.birth && data.birth.date) || '', placeholder: 'e.g. 1938-04-12, 1938, or “abt 1850”' });
+  f.birthPlace = el('input', { type: 'text', value: (data.birth && data.birth.place) || '', placeholder: 'e.g. Taishan, Guangdong' });
+  f.death = el('input', { type: 'text', value: (data.death && data.death.date) || '', placeholder: 'leave blank if living' });
   f.deathPlace = el('input', { type: 'text', value: (data.death && data.death.place) || '' });
   const birthGeo = makeGeo(f.birthPlace, data.birth);
   const deathGeo = makeGeo(f.deathPlace, data.death);
   f.living = el('input', { type: 'checkbox' }); f.living.checked = data.living === true;
-  f.talent = el('input', { type: 'text', value: ((data.tags && data.tags.talent) || []).join(', '), placeholder: 'running, painting…' });
-  f.health = el('input', { type: 'text', value: ((data.tags && data.tags.health) || []).join(', '), placeholder: 'heart-disease…' });
-  f.story = el('textarea', { placeholder: 'Their story. Add lessons with a line like:  {lesson: money} …  or  {mistake: health} …' }, body0);
+
+  // --- Story ---
+  f.story = el('textarea', {
+    placeholder: 'A few sentences are enough. Add lessons inline with {lesson: theme} … or {mistake: theme} … — or use the composer below.',
+  }, body0);
+
+  // lesson composer: structured inputs that splice a well-formed marker into the story
+  const knownThemes = collectThemes();
+  const composerKind = el('select', {}, ...['lesson', 'mistake'].map((k) => el('option', { value: k }, k)));
+  const composerTheme = el('select', {}, ...knownThemes.map((t) => el('option', { value: t }, t)), el('option', { value: '__custom' }, 'other…'));
+  const composerCustom = el('input', { type: 'text', placeholder: 'theme (one word)', style: { display: 'none' } });
+  composerTheme.addEventListener('change', () => {
+    composerCustom.style.display = composerTheme.value === '__custom' ? '' : 'none';
+    if (composerTheme.value === '__custom') composerCustom.focus();
+  });
+  const composerInsert = el('button', { type: 'button', class: 'btn btn-small btn-primary', onclick: () => {
+    const theme = (composerTheme.value === '__custom' ? composerCustom.value : composerTheme.value).trim().toLowerCase();
+    if (!theme) { toast('Pick a theme first.', { kind: 'error' }); return; }
+    const safe = theme.replace(/[^a-z0-9-]/g, '');
+    insert(f.story, `\n\n- {${composerKind.value}: ${safe}} `);
+  } }, 'Add to story');
+  const composer = el('div', { class: 'lesson-composer' },
+    el('span', { class: 'lesson-composer-label' }, 'Lesson composer'),
+    composerKind, composerTheme, composerCustom, composerInsert);
 
   const promptBar = el('div', { class: 'prompt-library' },
-    ...STORY_PROMPTS.map((q) => el('button', { type: 'button', class: 'prompt-chip', onclick: () => insert(f.story, `\n\n**${q}**\n`) }, q)),
-    el('button', { type: 'button', class: 'prompt-chip', onclick: () => insert(f.story, '\n- {lesson: money} ') }, '+ lesson'),
-    el('button', { type: 'button', class: 'prompt-chip', onclick: () => insert(f.story, '\n- {mistake: health} ') }, '+ mistake'));
+    ...STORY_PROMPTS.map((q) => el('button', { type: 'button', class: 'prompt-chip', onclick: () => insert(f.story, `\n\n**${q}**\n`) }, q)));
 
-  // family links
+  // --- Family ---
   const unionOptions = [el('option', { value: '' }, 'Unknown / not recorded'),
     ...store.allUnions().map((u) => el('option', { value: u.id, selected: data.parents_union === u.id || undefined }, unionLabel(u)))];
   f.parents = el('select', {}, ...unionOptions);
   const curRel = parentsRelation(person);
   f.relation = el('select', {}, ...['biological', 'adopted', 'step'].map((v) => el('option', { value: v, selected: curRel === v || undefined }, v)));
+  const relationRow = row('Relation to parents', f.relation);
+  // hide relation until a parents union is chosen — otherwise it's "biological to nobody"
+  const updateRelationVisibility = () => { relationRow.style.display = f.parents.value ? '' : 'none'; };
+  f.parents.addEventListener('change', updateRelationVisibility);
   f.spouse = el('select', {}, el('option', { value: '' }, '— none —'),
     ...store.allPeople().filter((p) => p.id !== data.id).sort((a, b) => displayName(a).localeCompare(displayName(b)))
       .map((p) => el('option', { value: p.id }, displayName(p))));
 
+  // --- Optional details (collapsed) ---
+  f.maiden = el('input', { type: 'text', value: names.maiden || '', autocomplete: 'off' });
+  f.aka = el('input', { type: 'text', value: (names.also_known_as || []).join(', '), placeholder: 'nicknames, comma-separated', autocomplete: 'off' });
+  f.talent = el('input', { type: 'text', value: ((data.tags && data.tags.talent) || []).join(', '), placeholder: 'running, painting…' });
+  f.health = el('input', { type: 'text', value: ((data.tags && data.tags.health) || []).join(', '), placeholder: 'heart-disease…' });
+
   // photos (archive only)
   const photoStatus = el('div', { class: 'hint' });
-  const photoInput = el('input', { type: 'file', accept: 'image/*', onchange: (e) => addPhotos(e.target.files) });
+  const photoInput = el('input', { type: 'file', accept: 'image/*', multiple: true, onchange: (e) => addPhotos(e.target.files) });
   data.photos = data.photos || [];
   async function addPhotos(files) {
-    if (!root) { photoStatus.textContent = 'Photos can be added once you open an archive folder.'; return; }
+    if (!root) { photoStatus.textContent = 'Photos save once you open an archive folder.'; return; }
     for (const file of files) {
-      try { const name = await importPhoto(root, data.id, file); data.photos.push({ file: name, caption: '', date: '' }); photoStatus.textContent = `Added ${data.photos.length} photo(s).`; }
-      catch (err) { photoStatus.textContent = err.message; }
+      try {
+        const name = await importPhoto(root, data.id, file);
+        data.photos.push({ file: name, caption: '', date: '' });
+        photoStatus.textContent = `Added ${data.photos.length} photo${data.photos.length === 1 ? '' : 's'}.`;
+      } catch (err) {
+        toast(err.message, { kind: 'error' });
+        photoStatus.textContent = err.message;
+      }
     }
   }
 
-  const err = el('div', { class: 'hint', style: { color: 'var(--oxblood)' } });
+  const err = el('div', { class: 'hint', style: { color: 'var(--oxblood)', marginTop: 'var(--s-3)' } });
 
   async function save() {
+    err.textContent = '';
     const display = f.display.value.trim();
-    if (!display && !f.given.value.trim()) { err.textContent = 'Please enter at least a name.'; return; }
+    if (!display && !f.given.value.trim()) {
+      err.textContent = 'A name is required — at least a given name or a full name.';
+      f.display.focus();
+      return;
+    }
     names.display = display || [f.given.value, f.family.value].filter(Boolean).join(' ').trim();
     names.given = f.given.value.trim() || undefined;
     names.family = f.family.value.trim() || undefined;
@@ -99,35 +146,78 @@ export function openPersonEditor({ root, person }) {
       if (f.spouse.value) await applySpouse(root, data, f.spouse.value);
       close();
       window.dispatchEvent(new CustomEvent('data:changed', { detail: { focus: data.id } }));
-    } catch (e) { err.textContent = 'Could not save: ' + e.message; }
+      toast(
+        isNew ? `Added ${names.display}.` : `Saved ${names.display}.`,
+        { kind: 'success' });
+      if (!root) toast('Demo mode — changes live only in this browser tab.', { duration: 5000 });
+    } catch (e) {
+      err.textContent = 'Could not save: ' + e.message;
+      toast('Save failed: ' + e.message, { kind: 'error' });
+    }
   }
 
   const backdrop = el('div', { class: 'modal-backdrop', onclick: (e) => { if (e.target === backdrop) close(); } });
-  function close() { backdrop.remove(); }
+  function close() { backdrop.remove(); document.removeEventListener('keydown', onKey); }
+  function onKey(e) { if (e.key === 'Escape') close(); }
+  document.addEventListener('keydown', onKey);
+
+  const identitySection = el('div', { class: 'form-section' },
+    el('div', { class: 'form-section-head' }, 'Identity'),
+    row('Full name', f.display, null, true),
+    el('div', { class: 'form-grid' },
+      row('Given', f.given),
+      row('Family', f.family),
+      row('Sex', f.sex),
+      row('Still living?', el('span', { class: 'inline-check' }, f.living, el('span', { class: 'inline-check-label' }, 'Yes — currently living')))),
+  );
+
+  const datesSection = el('div', { class: 'form-section' },
+    el('div', { class: 'form-section-head' }, 'Dates & places'),
+    el('div', { class: 'form-grid' },
+      row('Born', f.birth, 'Plain language is fine — “1938”, “abt 1850”, or a full date.'),
+      row('Birthplace', el('div', {}, f.birthPlace, birthGeo.wrap), 'Coordinates fill in offline.'),
+      row('Died', f.death, 'Leave blank if living.'),
+      row('Place of death', el('div', {}, f.deathPlace, deathGeo.wrap))),
+  );
+
+  const storySection = el('div', { class: 'form-section' },
+    el('div', { class: 'form-section-head' }, 'Story'),
+    row('Their story', el('div', {}, f.story, composer, promptBar),
+      el('span', {}, 'Markers like ', el('code', {}, '{lesson: money}'), ' or ', el('code', {}, '{mistake: health}'), ' collect into the Lessons view.')),
+  );
+
+  const familySection = el('div', { class: 'form-section' },
+    el('div', { class: 'form-section-head' }, 'Family'),
+    row('Parents', f.parents, 'Pick the union the person belongs to. New unions can be added by editing one of the parents.'),
+    relationRow,
+    row('Add a spouse / partner', f.spouse, 'Creates a marriage link to the chosen person.'),
+  );
+
+  const optionalSection = el('details', { class: 'collapse' },
+    el('summary', {}, 'Optional details — nicknames, traits, photos'),
+    el('div', { class: 'collapse-body' },
+      el('div', { class: 'form-grid' }, row('Former / maiden name', f.maiden), row('Also known as', f.aka)),
+      el('div', { class: 'form-grid' }, row('Talents', f.talent, 'Comma-separated.'), row('Health notes', f.health, 'Comma-separated.')),
+      root ? row('Add photos', el('div', {}, photoInput, photoStatus), 'JPEG / PNG / GIF / WebP. HEIC isn’t browser-viewable.') : null,
+    ));
 
   backdrop.append(el('div', { class: 'modal' },
     el('h2', {}, isNew ? 'Add a person' : `Edit ${displayName(person)}`),
-    row('Full name', f.display),
-    el('div', { class: 'form-grid' }, row('Given', f.given), row('Family', f.family), row('Maiden', f.maiden), row('Sex', f.sex)),
-    row('Also known as', f.aka),
-    el('div', { class: 'form-grid' },
-      row('Born', f.birth, 'e.g. 1938-04-12, 1938, or “abt 1850”'),
-      row('Birthplace', el('div', {}, f.birthPlace, birthGeo.wrap), 'coordinates fill in automatically, offline'),
-      row('Died', f.death, 'leave blank if living'),
-      row('Place of death', el('div', {}, f.deathPlace, deathGeo.wrap))),
-    el('div', { class: 'form-row' }, el('label', {}, el('span', {}, 'Living'), ' ', f.living)),
-    el('div', { class: 'form-grid' }, row('Talents', f.talent), row('Health', f.health)),
-    row('Story', el('div', {}, f.story, promptBar)),
-    el('hr', { class: 'section-rule' }),
-    el('div', { class: 'form-grid' }, row('Parents (a union)', f.parents), row('Relation to parents', f.relation)),
-    row('Add a spouse / partner', f.spouse, 'creates a marriage link to the chosen person'),
-    root ? row('Add photos', el('div', {}, photoInput, photoStatus)) : null,
+    el('p', { class: 'modal-sub' }, isNew
+      ? 'A name is all that’s required. You can come back and fill in the rest.'
+      : `Editing ${displayName(person)}. Changes ${root ? 'save to your archive folder.' : 'live only in this demo tab.'}`),
+    identitySection,
+    datesSection,
+    storySection,
+    familySection,
+    optionalSection,
     err,
     el('div', { class: 'form-actions' },
       el('button', { class: 'btn btn-ghost', onclick: close }, 'Cancel'),
       el('button', { class: 'btn btn-primary', onclick: save }, isNew ? 'Add person' : 'Save')),
   ));
   document.body.append(backdrop);
+  updateRelationVisibility();
   f.display.focus();
 }
 
@@ -184,6 +274,15 @@ function insert(textarea, snippet) {
 }
 function clean(obj) { const o = {}; for (const [k, v] of Object.entries(obj)) if (v) o[k] = v; return Object.keys(o).length ? o : undefined; }
 
+function collectThemes() {
+  const seen = new Set(THEMES);
+  try {
+    const groups = store.lessonsByTheme ? store.lessonsByTheme() : {};
+    for (const k of Object.keys(groups || {})) seen.add(k);
+  } catch {}
+  return [...seen];
+}
+
 // A place field paired with an offline coordinate lookup. Typing a place and
 // tabbing out resolves coordinates from the bundled gazetteer (no network); the
 // user can also paste lat/lng by hand or click Locate to refresh.
@@ -199,8 +298,8 @@ function makeGeo(placeInput, existing) {
     set('Looking up…');
     try {
       const hit = await lookupPlace(place);
-      if (hit) { coords.value = `${hit.lat}, ${hit.lng}`; set(`Found ${hit.label}${hit.country ? ', ' + hit.country : ''} — pinned offline`, 'is-found'); }
-      else set('Not in the offline list — paste coordinates (right-click a spot in any map app → copy).', 'is-missing');
+      if (hit) { coords.value = `${hit.lat}, ${hit.lng}`; set(`Found ${hit.label}${hit.country ? ', ' + hit.country : ''} — pinned offline.`, 'is-found'); }
+      else set('Not in the gazetteer. Paste “lat, lng” from any map (right-click a spot → copy).', 'is-missing');
     } catch (e) { set('Lookup unavailable: ' + e.message, 'is-missing'); }
   }
   placeInput.addEventListener('blur', () => locate(false));
