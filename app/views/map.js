@@ -8,7 +8,11 @@ import { el, clear } from '../dom.js';
 import { store, displayName, lifespan } from '../store.js';
 import { LAND } from '../vendor/worldmap.js';
 
-const W = 1280, H = 640; // equirectangular canvas (2:1)
+// Equirectangular projection — the SVG viewBox is fixed at 2:1; the rendered
+// size is driven by the wrap's actual width so the world map always fits its
+// container at 100% zoom (no horizontal scrollbar). The user can zoom in past
+// 100% and scroll to pan; at 100% the whole world is visible at once.
+const W = 1280, H = 640;
 const SVG = 'http://www.w3.org/2000/svg';
 function s(tag, attrs, ...kids) {
   const n = document.createElementNS(SVG, tag);
@@ -83,7 +87,10 @@ export function renderMap(view) {
 
   // ---- build the SVG ----
   let scale = 1;
-  const svg = s('svg', { class: 'map-svg', width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  // The SVG sizes to its parent (.map-canvas) via CSS; the viewBox preserves
+  // the coordinate space, so every projX/projY result remains valid regardless
+  // of the rendered size.
+  const svg = s('svg', { class: 'map-svg', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' });
   svg.append(s('rect', { x: 0, y: 0, width: W, height: H, class: 'map-ocean' }));
   svg.append(s('path', { d: landPath(), class: 'map-land', 'fill-rule': 'evenodd' }));
 
@@ -119,21 +126,33 @@ export function renderMap(view) {
   function highlight(cx, cy) { ring.setAttribute('cx', cx.toFixed(1)); ring.setAttribute('cy', cy.toFixed(1)); ring.setAttribute('r', 16); }
   svg.append(dots);
 
-  const canvas = el('div', { class: 'map-canvas', style: { width: W + 'px', height: H + 'px' } }, svg);
+  // The canvas div drives the rendered size. At scale = 1 it matches the wrap
+  // width exactly (no scrollbars). When the user zooms in, it grows past the
+  // wrap and the wrap's overflow:auto provides natural pan-by-scroll.
+  const canvas = el('div', { class: 'map-canvas' }, svg);
   const mapWrap = el('div', { class: 'map-wrap' }, canvas);
   const zoomLabel = el('span', { class: 'tree-zoom-label', title: 'Zoom' }, '100%');
+  // 100% means the canvas fits within the wrap on both axes (no scrollbars).
+  // The wrap CSS aims for a 2:1 aspect, but max-height (or unusual viewports)
+  // may make it wider-than-2:1; we always pick the largest 2:1 rectangle that
+  // fits, so the map is never cropped at 100%.
+  const fitWidth = () => {
+    const cw = Math.max(120, mapWrap.clientWidth);
+    const ch = Math.max(60, mapWrap.clientHeight);
+    return Math.floor(Math.min(cw, ch * 2));
+  };
   const setScale = (z) => {
-    scale = Math.min(4, Math.max(0.5, z));
-    canvas.style.transform = `scale(${scale})`;
-    canvas.style.width = (W * scale) + 'px';
-    canvas.style.height = (H * scale) + 'px';
+    scale = Math.min(4, Math.max(1, z));   // never below 100% — the whole world stays visible by default
+    const w = fitWidth() * scale;
+    canvas.style.width = w + 'px';
+    canvas.style.height = (w / 2) + 'px';   // equirectangular: height = width / 2
     zoomLabel.textContent = Math.round(scale * 100) + '%';
   };
 
   const zoomGroup = el('div', { class: 'btn-group', role: 'group', 'aria-label': 'Zoom' },
     el('button', { class: 'btn btn-small', title: 'Zoom out', 'aria-label': 'Zoom out', onclick: () => setScale(scale - 0.3) }, '−'),
     zoomLabel,
-    el('button', { class: 'btn btn-small', title: 'Reset zoom', onclick: () => setScale(1) }, 'Reset'),
+    el('button', { class: 'btn btn-small', title: 'Reset zoom (fit to window)', onclick: () => setScale(1) }, 'Fit'),
     el('button', { class: 'btn btn-small', title: 'Zoom in', 'aria-label': 'Zoom in', onclick: () => setScale(scale + 0.3) }, '+'));
 
   const toolbar = el('div', { class: 'map-toolbar' },
@@ -171,11 +190,20 @@ export function renderMap(view) {
 
   view.append(wrap);
 
-  // center the scroll on the spread of plotted points
-  requestAnimationFrame(() => {
-    const xs = places.map((p) => projX(p.lng)), ys = places.map((p) => projY(p.lat));
-    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-    mapWrap.scrollLeft = cx - mapWrap.clientWidth / 2;
-    mapWrap.scrollTop = cy - mapWrap.clientHeight / 2;
-  });
+  // First fit: wait for layout so mapWrap.clientWidth is real.
+  requestAnimationFrame(() => setScale(scale));
+
+  // Window resize: re-fit the canvas to the new wrap width. ResizeObserver
+  // catches both window resizes and sidebar layout changes (e.g. the 760px
+  // breakpoint stacking the side panel below the map).
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => setScale(scale));
+    ro.observe(mapWrap);
+    // Stop observing once this view is replaced (cheap: poll the parent each tick).
+    const stopWhenGone = () => {
+      if (!mapWrap.isConnected) { ro.disconnect(); return; }
+      requestAnimationFrame(stopWhenGone);
+    };
+    stopWhenGone();
+  }
 }

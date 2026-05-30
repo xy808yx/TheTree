@@ -328,9 +328,20 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .map { max-width: 70rem; margin: 0 auto; }
 .map-toolbar { display: flex; align-items: center; gap: .5rem; margin: .5rem 0 1rem; flex-wrap: wrap; }
 .map-layout { display: grid; grid-template-columns: 1fr 17rem; gap: 1.25rem; align-items: start; }
-.map-wrap { position: relative; overflow: auto; border: 1px solid var(--hairline); border-radius: var(--r-md); background: var(--paper-deep); min-height: 58vh; max-height: 72vh; box-shadow: inset 0 1px 3px rgba(40,36,28,.05); }
-.map-canvas { transform-origin: 0 0; }
-.map-svg { display: block; }
+.map-wrap {
+  position: relative; overflow: auto;
+  border: 1px solid var(--hairline); border-radius: var(--r-md);
+  background: var(--paper-deep);
+  box-shadow: inset 0 1px 3px rgba(40,36,28,.05);
+  /* Equirectangular projection inside — the wrap matches the canvas's natural
+     2:1 aspect so at 100% zoom the whole world fits with no scrollbars. */
+  aspect-ratio: 2 / 1;
+  /* Soft bounds so a very tall or very short viewport still feels right. */
+  min-height: 240px;
+  max-height: 72vh;
+}
+.map-canvas { transform-origin: 0 0; width: 100%; height: 100%; }
+.map-svg { display: block; width: 100%; height: 100%; }
 .map-ocean { fill: #eceee6; }
 .map-land { fill: #ddd6c5; stroke: #c2b9a4; stroke-width: .6; }
 .map-arc { fill: none; stroke: var(--gold); stroke-width: 1.4; opacity: .55; stroke-linecap: round; }
