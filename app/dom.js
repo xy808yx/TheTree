@@ -30,3 +30,33 @@ export function clear(node) {
 }
 
 export function go(path) { location.hash = path; }
+
+// Toasts: a small ephemeral message at the bottom of the viewport. Stacks if
+// fired in quick succession; auto-dismisses unless 'sticky'. Replaces alert()
+// for everything that's not blocking confirmation.
+function toastStack() {
+  let s = document.querySelector('.toast-stack');
+  if (!s) { s = el('div', { class: 'toast-stack', role: 'status', 'aria-live': 'polite' }); document.body.append(s); }
+  return s;
+}
+
+export function toast(message, opts = {}) {
+  const kind = opts.kind || 'default';        // 'default' | 'success' | 'error'
+  const duration = opts.duration ?? (kind === 'error' ? 6000 : 3500);
+  const sticky = !!opts.sticky;
+  const icon = opts.icon ?? (kind === 'success' ? '✓' : kind === 'error' ? '!' : '·');
+
+  const t = el('div', { class: `toast${kind !== 'default' ? ' is-' + kind : ''}`, role: kind === 'error' ? 'alert' : 'status' },
+    el('span', { class: 'toast-icon', 'aria-hidden': 'true' }, icon),
+    el('span', { class: 'toast-body' }, message),
+  );
+  const close = () => {
+    if (!t.isConnected) return;
+    t.classList.add('is-leaving');
+    setTimeout(() => t.remove(), 250);
+  };
+  t.append(el('button', { class: 'toast-close', 'aria-label': 'Dismiss', onclick: close }, '×'));
+  toastStack().append(t);
+  if (!sticky) setTimeout(close, duration);
+  return { close };
+}
