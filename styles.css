@@ -595,3 +595,16 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .tl-year, .node-life, .book-life, .pl-life, .pr-life, .tl-fine, .book-tp-meta {
   font-feature-settings: "tnum" 1, "lnum" 1;
 }
+
+/* ---------- guide / how this works ---------- */
+.guide { max-width: 44rem; margin: 0 auto; }
+.guide-back { font-family: var(--sans); font-size: var(--t-sm); display: inline-block; margin-bottom: var(--s-4); }
+.guide-lead { font-size: var(--t-md); color: var(--ink-soft); margin: 0 0 var(--s-6); line-height: 1.5; }
+.guide-section { margin: 0 0 var(--s-6); }
+.guide-section h2 { font-size: var(--t-lg); margin: 0 0 var(--s-2); }
+.guide-section p { margin: 0 0 var(--s-3); color: var(--ink-soft); }
+.guide-section ul, .guide-section ol { margin: 0 0 var(--s-3); padding-left: 1.25rem; color: var(--ink-soft); }
+.guide-section li { margin: 0 0 var(--s-2); line-height: 1.5; }
+.guide-section li strong { color: var(--ink); }
+.guide-note { font-family: var(--sans); font-size: var(--t-sm); color: var(--ink-faint); }
+.guide code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; background: var(--paper-deep); padding: 0 .35em; border-radius: 3px; color: var(--ink-soft); }

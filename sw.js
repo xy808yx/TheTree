@@ -1,12 +1,12 @@
 // Offline app shell. Precaches the app CODE only — family data is read straight
 // from disk via the File System Access API and photos via object URLs, so they
 // never pass through here. Bump CACHE to ship updated code.
-const CACHE = 'thetree-v7';
+const CACHE = 'thetree-v9';
 const ASSETS = [
   './', './index.html', './styles.css', './manifest.webmanifest', './icon.svg',
   './app/main.js', './app/dom.js', './app/store.js', './app/parse.js', './app/fsa.js', './app/geo.js', './app/gedcom.js', './app/sample-data.js',
   './app/views/tree.js', './app/views/person.js', './app/views/timeline.js', './app/views/map.js',
-  './app/views/lessons.js', './app/views/query.js', './app/views/edit.js', './app/views/book.js',
+  './app/views/lessons.js', './app/views/query.js', './app/views/edit.js', './app/views/book.js', './app/views/guide.js',
   './app/vendor/marked.esm.js', './app/vendor/js-yaml.js', './app/vendor/purify.es.js',
   './app/vendor/cities.js', './app/vendor/worldmap.js',
 ];

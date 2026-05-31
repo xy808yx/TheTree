@@ -7,7 +7,7 @@
 
 import { el, clear, toast } from '../dom.js';
 import { store, displayName, uid, THEMES } from '../store.js';
-import { writePerson, writeUnion, importPhoto } from '../fsa.js';
+import { writePerson, writeUnion, importPhoto, verifyPermission, loadArchive } from '../fsa.js';
 import { lookupPlace, parseLatLng } from '../geo.js';
 
 const STORY_PROMPTS = [
@@ -117,6 +117,19 @@ export function openPersonEditor({ root, person }) {
 
   const err = el('div', { class: 'hint', style: { color: 'var(--oxblood)', marginTop: 'var(--s-3)' } });
 
+  // Lost folder access is the one way a save could silently fail to reach disk.
+  // Surface it loudly with a working Reconnect (handled in main.js) and keep the
+  // modal open so nothing the user typed is lost. Only one such toast at a time.
+  let lostToast = null;
+  function reportLostAccess(msg) {
+    const text = msg || 'The Tree needs permission to your folder again before it can save.';
+    err.textContent = text;
+    if (lostToast) lostToast.close();
+    const reconnect = el('button', { type: 'button', class: 'btn btn-small',
+      onclick: () => { if (lostToast) { lostToast.close(); lostToast = null; } window.dispatchEvent(new CustomEvent('archive:reconnect')); } }, 'Reconnect');
+    lostToast = toast(el('span', {}, text + ' ', reconnect), { kind: 'error', sticky: true });
+  }
+
   async function save() {
     err.textContent = '';
     const display = f.display.value.trim();
@@ -125,6 +138,10 @@ export function openPersonEditor({ root, person }) {
       f.display.focus();
       return;
     }
+    // Confirm write access BEFORE touching anything, so a save can never half-apply
+    // and still look successful. The Save click is a user gesture, so the browser can
+    // re-prompt here and silently re-grant in the common case.
+    if (root && !(await verifyPermission(root))) { reportLostAccess(); return; }
     names.display = display || [f.given.value, f.family.value].filter(Boolean).join(' ').trim();
     names.given = f.given.value.trim() || undefined;
     names.family = f.family.value.trim() || undefined;
@@ -151,8 +168,18 @@ export function openPersonEditor({ root, person }) {
         { kind: 'success' });
       if (!root) toast('Demo mode — changes live only in this browser tab.', { duration: 5000 });
     } catch (e) {
-      err.textContent = 'Could not save: ' + e.message;
-      toast('Save failed: ' + e.message, { kind: 'error' });
+      console.error('The Tree: save failed', e); // never swallow the only diagnostic
+      const lostAccess = !!e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
+      if (root && lostAccess) {
+        // Folder access dropped mid-save. Re-sync memory with what's actually on disk
+        // so nothing is left half-applied in memory, then offer a Reconnect.
+        try { const { docs } = await loadArchive(root); store.loadDocs(docs); window.dispatchEvent(new CustomEvent('data:changed')); } catch { /* fall through to the message */ }
+        reportLostAccess('That didn’t save — The Tree lost access to your folder. Reconnect and try again.');
+      } else {
+        const msg = (e && e.message) || String(e);
+        err.textContent = 'Couldn’t save: ' + msg;
+        toast('Save failed: ' + msg, { kind: 'error' });
+      }
     }
   }
 
