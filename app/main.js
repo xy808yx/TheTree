@@ -5,7 +5,7 @@ import { store, displayName } from './store.js';
 import { sampleDocs, SAMPLE_FOCUS } from './sample-data.js';
 import {
   isSupported, getSavedHandle, pickArchive, verifyPermission,
-  ensureStructure, loadArchive, readManifest, writeManifest,
+  ensureStructure, ensureReadme, pruneBackups, loadArchive, readManifest, writeManifest,
 } from './fsa.js';
 import { renderTree } from './views/tree.js';
 import { renderPerson } from './views/person.js';
@@ -14,6 +14,7 @@ import { renderMap } from './views/map.js';
 import { renderLessons } from './views/lessons.js';
 import { renderQuery } from './views/query.js';
 import { renderBook } from './views/book.js';
+import { renderGuide } from './views/guide.js';
 
 const app = { mode: null, root: null, archiveName: '', focus: null };
 let savedHandle = null;
@@ -72,6 +73,7 @@ function renderNav() {
     navLink('Lessons', '#/lessons', route === 'lessons'),
     navLink('People', '#/query', route === 'query'),
     navLink('Book', '#/book', route === 'book'),
+    navLink('Guide', '#/guide', route === 'guide'),
   );
 
   if (app.mode === 'archive') {
@@ -121,7 +123,9 @@ function renderLanding(view) {
     notice,
     actions,
     el('hr', { class: 'landing-rule' }),
-    el('p', { class: 'landing-fine' }, 'Plain files in a folder you choose. Nothing leaves your computer.'),
+    el('p', { class: 'landing-fine' },
+      'Your family lives in a folder of plain files you choose — readable forever, and nothing leaves your computer. ',
+      el('a', { href: '#/guide' }, 'How this works')),
   ));
 }
 
@@ -135,7 +139,9 @@ function renderEmptyArchive(view) {
     el('div', { class: 'landing-actions' },
       el('button', { class: 'btn btn-primary btn-large', onclick: () => addPerson() }, '+ Add the first person')),
     el('hr', { class: 'landing-rule' }),
-    el('p', { class: 'landing-fine' }, 'Files will be written to this folder under ', el('code', {}, 'people/'), ' and ', el('code', {}, 'unions/'), '. Backups land in ', el('code', {}, '_backups/'), '.'),
+    el('p', { class: 'landing-fine' },
+      'Each person becomes a plain file under ', el('code', {}, 'people/'), ' that you own and can read in any editor. A ', el('code', {}, 'READ ME FIRST.md'), ' explaining backups and sharing is already in your folder. ',
+      el('a', { href: '#/guide' }, 'How this works')),
   ));
 }
 
@@ -150,12 +156,23 @@ function enterDemo() {
 async function useRoot(root) {
   app.root = root; app.mode = 'archive'; app.archiveName = root.name;
   await ensureStructure(root);
+  const man = (await readManifest(root)) || {};
+  // Write READ ME FIRST.md once, ever — tracked in the manifest so that if the user
+  // later deletes it (which the README itself invites), we don't silently resurrect it.
+  if (man.readmeWritten !== true) {
+    try { await ensureReadme(root); man.readmeWritten = true; } catch { /* unwritten → retry next open */ }
+  }
   const { docs, skipped } = await loadArchive(root);
   store.loadDocs(docs);
-  if (skipped.length) console.warn('The Tree: skipped unparseable files', skipped);
-  const man = (await readManifest(root)) || {};
+  pruneBackups(root).catch(() => {}); // trim old backups once per open, off the critical path
+  if (skipped.length) {
+    console.warn('The Tree: skipped unparseable files', skipped);
+    const n = skipped.length;
+    toast(`${n} file${n === 1 ? '' : 's'} couldn’t be read and ${n === 1 ? 'was' : 'were'} skipped. Open ${n === 1 ? 'it' : 'them'} in a text editor and check the “---” lines at the top.`,
+      { kind: 'error', duration: 9000 });
+  }
   app.focus = (man.focus && store.getPerson(man.focus)) ? man.focus : defaultFocus();
-  await writeManifest(root, { schemaVersion: 1, appVersion: 1, lastOpened: new Date().toISOString(), focus: app.focus });
+  await writeManifest(root, { schemaVersion: 1, appVersion: 1, lastOpened: new Date().toISOString(), focus: app.focus, readmeWritten: man.readmeWritten === true });
   go(app.focus ? `#/tree/${app.focus}` : '#/');
   router();
 }
@@ -198,17 +215,25 @@ async function addPerson() {
 }
 
 // ---------- routing ----------
+// Hash segments can contain a stray "%"; decodeURIComponent throws on those. Fall
+// back to the raw segment so a malformed hash never crashes the router.
+function safeDecode(s) { try { return decodeURIComponent(s); } catch { return s; } }
+
 function router() {
   const view = document.getElementById('view');
   if (!view) return;
+  const parts = location.hash.replace(/^#\/?/, '').split('/'); // e.g. ['tree','p-marcus']
+  const route = parts[0] || 'tree';
+  const id = parts[1] ? safeDecode(parts[1]) : null;
+
+  // The guide is static — reachable even before a folder or the demo is loaded.
+  if (route === 'guide') { clear(view); renderGuide(view); renderNav(); window.scrollTo(0, 0); return; }
+
   if (store.size === 0) {
     if (app.mode === 'archive') renderEmptyArchive(view); else renderLanding(view);
     renderNav();
     return;
   }
-  const parts = location.hash.replace(/^#\/?/, '').split('/'); // e.g. ['tree','p-marcus']
-  const route = parts[0] || 'tree';
-  const id = parts[1] ? decodeURIComponent(parts[1]) : null;
   clear(view);
   if (route === 'person' && id) renderPerson(view, id);
   else if (route === 'timeline') renderTimeline(view);
@@ -233,6 +258,7 @@ async function boot() {
     if (focus) go(`#/person/${focus}`); else router();
     router();
   });
+  window.addEventListener('archive:reconnect', () => { reconnect(); });
   router();
 
   if ('serviceWorker' in navigator) {

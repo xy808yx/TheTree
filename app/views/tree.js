@@ -71,11 +71,15 @@ export function renderTree(view, focusId) {
   // ---- ancestors (pedigree), own cursor then aligned to focus ----
   let cursorA = 0;
   const anc = [];
+  const ancSeen = new Map(); // personId -> col; breaks cycles / pedigree-collapse loops
   function layoutAnc(person, gen) {
+    if (ancSeen.has(person.id)) return ancSeen.get(person.id); // already placed — never recurse a loop
+    ancSeen.set(person.id, cursorA); // tentative slot so a cyclic ancestor resolves instead of hanging
     const parents = gen > -MAX_UP ? store.parentsOf(person).map((x) => x.person) : [];
     let col;
     if (!parents.length) { col = cursorA; cursorA += 1; }
     else { const cols = parents.map((p) => layoutAnc(p, gen - 1)); col = cols.reduce((a, b) => a + b, 0) / cols.length; }
+    ancSeen.set(person.id, col);
     if (gen !== 0) anc.push({ person, gen, col });
     return col;
   }

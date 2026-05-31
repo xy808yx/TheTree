@@ -120,6 +120,33 @@ export async function safeWrite(root, sub, filename, text) {
   return filename;
 }
 
+// Trim every file's backup history to the most recent KEEP_BACKUPS. Runs once per
+// archive open (not per save, which would re-scan the whole folder on every write).
+// Backup names are `<iso-stamp>-<sub>-<filename>`; we group by everything after the
+// fixed-width stamp so all snapshots of one file land together — including those of
+// since-renamed records, whose old-slug backups would otherwise accumulate forever.
+const KEEP_BACKUPS = 10;
+export async function pruneBackups(root) {
+  let backups;
+  try { backups = await root.getDirectoryHandle('_backups'); } catch { return; } // nothing to prune
+  const groups = new Map(); // `<sub>-<filename>` -> [backup names]
+  for await (const [name, h] of backups.entries()) {
+    if (h.kind !== 'file') continue;
+    const m = name.match(/^\d{4}-\d\d-\d\dT[\d-]+Z-(.+)$/);
+    const key = m ? m[1] : name; // unrecognized names get their own group (never pruned)
+    let arr = groups.get(key);
+    if (!arr) { arr = []; groups.set(key, arr); }
+    arr.push(name);
+  }
+  for (const names of groups.values()) {
+    if (names.length <= KEEP_BACKUPS) continue;
+    names.sort(); // fixed-width ISO stamp prefix => oldest first
+    for (const name of names.slice(0, names.length - KEEP_BACKUPS)) {
+      try { await backups.removeEntry(name); } catch { /* ignore a single stuck file */ }
+    }
+  }
+}
+
 function fileNameFor(data) {
   const name = (data.names && (data.names.display || data.names.given)) || data.id;
   return `${data.id}-${slugify(name)}.md`;
@@ -147,8 +174,27 @@ export async function writeManifest(root, obj) {
 
 const VIEWABLE = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'];
 
-// Copy a chosen image into media/<personId>/. Refuses HEIC rather than storing
-// a file the browser can't display (honest failure beats a silent broken image).
+async function fileExists(dir, name) {
+  try { await dir.getFileHandle(name); return true; }
+  catch (e) { if (e && e.name === 'NotFoundError') return false; throw e; } // don't mask a dir clash or lost access
+}
+
+// Pick a name that isn't taken in dir, suffixing "-2", "-3", … before the
+// extension — so re-importing "IMG_001.jpg" never overwrites a different image.
+async function uniqueFileName(dir, name) {
+  if (!(await fileExists(dir, name))) return name;
+  const dot = name.lastIndexOf('.');
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : '';
+  for (let i = 2; ; i += 1) {
+    const candidate = `${base}-${i}${ext}`;
+    if (!(await fileExists(dir, candidate))) return candidate;
+  }
+}
+
+// Copy a chosen image into media/<personId>/. Refuses HEIC rather than storing a
+// file the browser can't display (honest failure beats a silent broken image), and
+// never overwrites an existing different photo (the filename is made unique first).
 export async function importPhoto(root, personId, file) {
   const ext = (file.name.split('.').pop() || '').toLowerCase();
   if (ext === 'heic' || ext === 'heif') {
@@ -159,11 +205,12 @@ export async function importPhoto(root, personId, file) {
   }
   const media = await root.getDirectoryHandle('media', { create: true });
   const pdir = await media.getDirectoryHandle(personId, { create: true });
-  const fh = await pdir.getFileHandle(file.name, { create: true });
+  const name = await uniqueFileName(pdir, file.name);
+  const fh = await pdir.getFileHandle(name, { create: true });
   const w = await fh.createWritable();
   await w.write(file);
   await w.close();
-  return file.name;
+  return name;
 }
 
 // Resolve a stored photo to an object URL for display. Returns null if missing.
@@ -174,4 +221,75 @@ export async function photoURL(root, personId, filename) {
     const fh = await pdir.getFileHandle(filename);
     return URL.createObjectURL(await fh.getFile());
   } catch { return null; }
+}
+
+// A plain-language README written into the archive root the first time it's opened,
+// so the folder explains itself on any computer, in any decade — and so whoever
+// inherits the USB drive or iCloud copy knows what it is and how to open it. Written
+// verbatim (not via safeWrite, which expects YAML frontmatter) and only when absent,
+// so a hand-edited README is never clobbered.
+// Where the static app is hosted — the one place a relative gets the app to open
+// the folder. Shared with the in-app guide (views/guide.js) so it can't drift.
+export const APP_URL = 'https://xy808yx.github.io/TheTree/';
+
+const README_NAME = 'READ ME FIRST.md';
+const README_TEXT = `# This folder is a family archive
+
+This is a collection of plain text files — one per person — that together hold a
+family's history: who they were, the stories worth keeping, and the hard-won
+lessons (and mistakes) worth passing on.
+
+**You own these files.** They are readable in any text editor, on any computer,
+with no special app, forever. Nothing here depends on a company, a subscription,
+or the internet.
+
+## How to open it with the app
+
+The Tree is a small web app that reads this folder and shows it as a tree,
+timeline, map, and printable book. It stores nothing itself — it is just a nicer
+way to read and edit what's already here.
+
+1. On a Mac, Windows, or Linux **computer**, open **Chrome or Edge**.
+2. Go to **${APP_URL}**
+3. Click **Open your archive folder** and choose *this* folder.
+
+(Editing needs Chrome or Edge on a desktop. Phones and Safari can't open the
+folder, but anyone can read the PDF book described below.)
+
+## What's in here
+
+- \`people/\`   — one Markdown file per person (the heart of the archive)
+- \`unions/\`   — marriages and partnerships, which link people together
+- \`media/\`    — photos, grouped by person
+- \`_backups/\` — automatic safety copies made before each save. Safe to delete
+  anytime if the folder gets large.
+
+## Backing it up
+
+- Keep this folder in **iCloud Drive** (or another synced folder) so it is backed
+  up automatically and follows you to a new computer.
+- Every so often, **copy the whole folder to a USB drive** and store it somewhere
+  safe. That copy survives any account, company, or computer.
+
+## Sharing it with family
+
+- **A PDF book** — open the app, go to **Book**, and choose *Save as PDF*. Print
+  or send that; it is the easiest thing for most relatives to read.
+- **A copy of this folder** — for someone who wants to open the app themselves or
+  read the files directly.
+- **A GEDCOM file** — export one from the app if a relative uses Ancestry,
+  FamilySearch, or other genealogy software.
+
+---
+*Written by The Tree. You can edit or delete this file — the app won't replace it.*
+`;
+
+// Write READ ME FIRST.md into the archive root if it isn't already there.
+export async function ensureReadme(root) {
+  if (await fileExists(root, README_NAME)) return false; // never clobber a hand-edited one
+  const fh = await root.getFileHandle(README_NAME, { create: true });
+  const w = await fh.createWritable();
+  await w.write(README_TEXT);
+  await w.close();
+  return true;
 }
