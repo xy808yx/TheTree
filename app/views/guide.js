@@ -40,10 +40,11 @@ export function renderGuide(view) {
       el('p', { class: 'guide-note' },
         'Editing needs Chrome or Edge on a desktop. Phones and Safari can read the PDF book below, but can’t open the folder directly.')),
 
-    section('Backing it up — two layers',
+    section('Backing it up',
       el('ul', {},
-        el('li', {}, el('strong', {}, 'Keep the folder in iCloud Drive'), ' (or another synced folder). It’s then backed up automatically and follows you to a new computer.'),
-        el('li', {}, el('strong', {}, 'Every so often, copy the whole folder to a USB drive'), ' and store it safely. That copy outlives any account, company, or computer.'))),
+        el('li', {}, el('strong', {}, 'Keep the folder in a synced cloud folder'), ' — iCloud Drive, Dropbox, or Google Drive. It’s backed up automatically and follows you to your other devices.'),
+        el('li', {}, el('strong', {}, 'For real privacy, use iCloud Drive with Advanced Data Protection turned on'), ' (System Settings → your name → iCloud). That makes iCloud end-to-end encrypted, so not even Apple can read your family’s stories. Then right-click the folder → ', el('strong', {}, 'Keep Downloaded'), ' so the app always has the files on hand.'),
+        el('li', {}, el('strong', {}, 'Every so often, copy the whole folder to a USB drive'), ' and store it safely. That offline copy outlives any account, company, or computer.'))),
 
     section('Sharing it with family — three ways',
       el('ul', {},

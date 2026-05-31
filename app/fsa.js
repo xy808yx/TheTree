@@ -266,10 +266,15 @@ folder, but anyone can read the PDF book described below.)
 
 ## Backing it up
 
-- Keep this folder in **iCloud Drive** (or another synced folder) so it is backed
-  up automatically and follows you to a new computer.
+- Keep this folder in a **synced cloud folder** (iCloud Drive, Dropbox, or Google
+  Drive) so it is backed up automatically and follows you to your other devices.
+- For real privacy, use **iCloud Drive with Advanced Data Protection turned on**
+  (System Settings > your name > iCloud > Advanced Data Protection). That makes
+  iCloud end-to-end encrypted, so not even Apple can read what's inside. Then
+  right-click the folder and choose **Keep Downloaded** so the app always has the
+  files locally.
 - Every so often, **copy the whole folder to a USB drive** and store it somewhere
-  safe. That copy survives any account, company, or computer.
+  safe. That offline copy survives any account, company, or computer.
 
 ## Sharing it with family
 
