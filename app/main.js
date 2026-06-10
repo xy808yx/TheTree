@@ -1,12 +1,21 @@
 // Bootstrap, app state, landing screen, top chrome, and hash routing.
+//
+// Single-file model: the archive is one family.html. On boot we read the data
+// embedded in this page; if there's none (the hosted editor, or a blank file) we
+// show a landing that can start a new archive, open a family.html, reconnect the
+// last one, or explore the demo. Saving writes an updated self-contained copy of
+// this page back to disk — in place via the File System Access API, or as a
+// download everywhere else (see archive.js).
 
 import { el, clear, go, toast } from './dom.js';
-import { store, displayName } from './store.js';
+import { store } from './store.js';
+import { app } from './context.js';
 import { sampleDocs, SAMPLE_FOCUS } from './sample-data.js';
 import {
-  isSupported, getSavedHandle, pickArchive, verifyPermission,
-  ensureStructure, ensureReadme, pruneBackups, loadArchive, readManifest, writeManifest,
-} from './fsa.js';
+  loadEmbedded, currentDocs, openArchiveFile, readArchiveFromHandle,
+  saveArchive, pickSaveLocation, downloadArchive,
+  getSavedFileHandle, verifyPermission, canUseFilePickers,
+} from './archive.js';
 import { renderTree } from './views/tree.js';
 import { renderPerson } from './views/person.js';
 import { renderTimeline } from './views/timeline.js';
@@ -16,10 +25,8 @@ import { renderQuery } from './views/query.js';
 import { renderBook } from './views/book.js';
 import { renderGuide } from './views/guide.js';
 
-const app = { mode: null, root: null, archiveName: '', focus: null };
-let savedHandle = null;
+let savedFileHandle = null; // the last-used family.html handle (for one-click reconnect)
 
-export function context() { return { root: app.root, mode: app.mode }; }
 export function defaultFocus() {
   if (app.focus && store.getPerson(app.focus)) return app.focus;
   const first = store.allPeople()[0];
@@ -77,13 +84,17 @@ function renderNav() {
   );
 
   if (app.mode === 'archive') {
+    const label = app.archiveName || 'family.html';
     right.append(
-      el('span', { class: 'archive-pill', title: 'Saving to ' + app.archiveName },
-        el('span', { class: 'dot' }), app.archiveName || 'Archive'));
+      el('span', { class: 'archive-pill', title: app.file ? 'Saving in place to ' + label : 'Not saved to a file yet — Save downloads a copy' },
+        el('span', { class: 'dot' + (app.dirty ? ' is-dirty' : '') }),
+        label, app.dirty ? el('span', { class: 'pill-flag', title: 'Unsaved changes' }, ' •') : null));
+    right.append(el('button', { class: 'btn btn-small' + (app.dirty ? ' btn-primary' : ''), onclick: () => requestSave() },
+      app.file ? 'Save' : 'Save / download'));
   } else {
     right.append(el('span', { class: 'demo-pill', title: 'You are exploring sample data. Nothing you change is saved.' },
       el('span', { class: 'dot' }), 'Demo — not saved'));
-    if (isSupported()) right.append(el('button', { class: 'btn btn-small', onclick: () => connect() }, 'Open a folder'));
+    right.append(el('button', { class: 'btn btn-small', onclick: () => backToLanding() }, 'Start your own'));
   }
   right.append(el('button', { class: 'btn btn-small btn-primary', onclick: () => addPerson() }, '+ Add person'));
 }
@@ -92,39 +103,34 @@ function renderNav() {
 function renderLanding(view) {
   clear(view);
   const actions = el('div', { class: 'landing-actions' });
-  if (isSupported()) {
-    // Prefer reconnect if we have a saved folder — it's the returning-user path.
-    if (savedHandle) {
-      actions.append(el('button', { class: 'btn btn-primary btn-large', onclick: () => reconnect() },
-        `Open “${savedHandle.name}”`));
-      actions.append(el('button', { class: 'btn', onclick: () => connect() }, 'Open a different folder'));
-    } else {
-      actions.append(el('button', { class: 'btn btn-primary btn-large', onclick: () => connect() },
-        'Open your archive folder'));
-    }
-    actions.append(el('button', { class: 'btn btn-ghost', onclick: () => enterDemo() }, 'Or explore the demo'));
+  if (savedFileHandle) {
+    actions.append(el('button', { class: 'btn btn-primary btn-large', onclick: () => reconnectSaved() },
+      `Open “${savedFileHandle.name}”`));
+    actions.append(el('button', { class: 'btn', onclick: () => openFile() }, 'Open a different family.html'));
+    actions.append(el('button', { class: 'btn', onclick: () => startNewArchive() }, 'Start a new archive'));
   } else {
-    // Read-only browsers (Safari, Firefox, mobile): demo IS the primary action.
-    actions.append(el('button', { class: 'btn btn-primary btn-large', onclick: () => enterDemo() }, 'Explore the demo family'));
+    actions.append(el('button', { class: 'btn btn-primary btn-large', onclick: () => startNewArchive() }, 'Start a new archive'));
+    actions.append(el('button', { class: 'btn', onclick: () => openFile() }, 'Open a family.html'));
   }
+  actions.append(el('button', { class: 'btn btn-ghost', onclick: () => enterDemo() }, 'Or explore the demo'));
 
-  const notice = isSupported() ? null
+  const note = canUseFilePickers() ? null
     : el('p', { class: 'banner' },
         el('span', { class: 'banner-icon', 'aria-hidden': 'true' }, '◆'),
         el('span', {},
-          el('strong', {}, 'Editing requires Chrome or Edge on a desktop. '),
-          'On this browser you can read the demo. To start your own archive, open this page in Chrome or Edge on a Mac, Windows, or Linux computer.'));
+          el('strong', {}, 'This browser works for reading and writing. '),
+          'When you Save, an updated family.html downloads. For one-click saving in place, open this page in Chrome or Edge on a desktop.'));
 
   view.append(el('section', { class: 'landing' },
     el('div', { class: 'landing-mark', 'aria-hidden': 'true' }, '· · ·'),
     el('h1', { class: 'landing-title' }, 'The Tree'),
     el('p', { class: 'landing-sub' },
       'A quiet archive of who your family was — their stories, their hard-won lessons, and the mistakes worth not repeating.'),
-    notice,
+    note,
     actions,
     el('hr', { class: 'landing-rule' }),
     el('p', { class: 'landing-fine' },
-      'Your family lives in a folder of plain files you choose — readable forever, and nothing leaves your computer. ',
+      'Your whole family lives in one file you own — open it on any device, back it up anywhere, hand it to anyone. Nothing leaves your computer. ',
       el('a', { href: '#/guide' }, 'How this works')),
   ));
 }
@@ -134,84 +140,119 @@ function renderEmptyArchive(view) {
   view.append(el('section', { class: 'landing' },
     el('div', { class: 'landing-mark', 'aria-hidden': 'true' }, '· · ·'),
     el('p', { class: 'results-caption' }, 'Your archive'),
-    el('h1', { class: 'landing-title' }, app.archiveName || 'Untitled'),
+    el('h1', { class: 'landing-title' }, app.archiveName || 'family.html'),
     el('p', { class: 'landing-sub' }, 'An empty room. Start by adding one person — a name and a single story is enough. You can fill the rest in later.'),
     el('div', { class: 'landing-actions' },
       el('button', { class: 'btn btn-primary btn-large', onclick: () => addPerson() }, '+ Add the first person')),
     el('hr', { class: 'landing-rule' }),
     el('p', { class: 'landing-fine' },
-      'Each person becomes a plain file under ', el('code', {}, 'people/'), ' that you own and can read in any editor. A ', el('code', {}, 'READ ME FIRST.md'), ' explaining backups and sharing is already in your folder. ',
+      'Everything you add lives inside one ', el('code', {}, 'family.html'), ' you keep. When you’re ready, ', el('strong', {}, 'Save'), ' writes it ',
+      canUseFilePickers() ? 'to disk' : 'as a download', ' — then back it up to iCloud, a USB drive, anywhere. ',
       el('a', { href: '#/guide' }, 'How this works')),
   ));
 }
 
-// ---------- data loading ----------
-function enterDemo() {
-  store.loadDocs(sampleDocs());
-  app.mode = 'demo'; app.root = null; app.focus = SAMPLE_FOCUS;
-  go(`#/tree/${SAMPLE_FOCUS}`);
-  router();
-}
-
-async function useRoot(root) {
-  app.root = root; app.mode = 'archive'; app.archiveName = root.name;
-  await ensureStructure(root);
-  const man = (await readManifest(root)) || {};
-  // Write READ ME FIRST.md once, ever — tracked in the manifest so that if the user
-  // later deletes it (which the README itself invites), we don't silently resurrect it.
-  if (man.readmeWritten !== true) {
-    try { await ensureReadme(root); man.readmeWritten = true; } catch { /* unwritten → retry next open */ }
-  }
-  const { docs, skipped } = await loadArchive(root);
+// ---------- entering an archive / demo ----------
+function enterArchive(docs, { file = null, name = 'family.html' } = {}) {
   store.loadDocs(docs);
-  pruneBackups(root).catch(() => {}); // trim old backups once per open, off the critical path
-  if (skipped.length) {
-    console.warn('The Tree: skipped unparseable files', skipped);
-    const n = skipped.length;
-    toast(`${n} file${n === 1 ? '' : 's'} couldn’t be read and ${n === 1 ? 'was' : 'were'} skipped. Open ${n === 1 ? 'it' : 'them'} in a text editor and check the “---” lines at the top.`,
-      { kind: 'error', duration: 9000 });
-  }
-  app.focus = (man.focus && store.getPerson(man.focus)) ? man.focus : defaultFocus();
-  await writeManifest(root, { schemaVersion: 1, appVersion: 1, lastOpened: new Date().toISOString(), focus: app.focus, readmeWritten: man.readmeWritten === true });
+  app.mode = 'archive'; app.file = file; app.archiveName = name; app.dirty = false;
+  if (file) savedFileHandle = file;
+  app.focus = defaultFocus();
   go(app.focus ? `#/tree/${app.focus}` : '#/');
   router();
 }
 
-async function connect() {
+function enterDemo() {
+  store.loadDocs(sampleDocs());
+  app.mode = 'demo'; app.file = null; app.archiveName = ''; app.dirty = false; app.focus = SAMPLE_FOCUS;
+  go(`#/tree/${SAMPLE_FOCUS}`);
+  router();
+}
+
+function backToLanding() {
+  store.clear();
+  app.mode = null; app.file = null; app.archiveName = ''; app.focus = null; app.dirty = false;
+  go('#/');
+  router();
+}
+
+function startNewArchive() {
+  store.clear();
+  app.mode = 'archive'; app.file = null; app.archiveName = 'family.html'; app.dirty = false; app.focus = null;
+  go('#/');
+  router();
+}
+
+async function openFile() {
   try {
-    const root = await pickArchive();
-    if (!(await verifyPermission(root))) {
-      toast('Folder access wasn’t granted. Click the button again and allow read & write to use this folder.', { kind: 'error' });
-      return;
+    const res = await openArchiveFile();
+    if (!res) return; // cancelled
+    enterArchive(res.docs, { file: res.handle, name: res.name });
+    toast(`Opened “${res.name}”.`, { kind: 'success' });
+    if (!res.handle && !canUseFilePickers()) {
+      toast('This browser can read the file but can’t write back to it — Save will download an updated copy.', { duration: 7000 });
     }
-    savedHandle = root;
-    await useRoot(root);
-    toast(`Opened “${root.name}”`, { kind: 'success' });
   } catch (e) {
-    if (e && e.name === 'AbortError') return; // user cancelled the picker — no message
     console.error(e);
-    toast('Could not open that folder: ' + e.message, { kind: 'error' });
+    toast('Couldn’t open that file: ' + (e.message || e), { kind: 'error' });
   }
 }
 
-async function reconnect() {
+async function reconnectSaved() {
+  if (!savedFileHandle) return;
   try {
-    if (!savedHandle) return;
-    if (!(await verifyPermission(savedHandle))) {
-      toast(`Couldn’t reopen “${savedHandle.name}”. The browser needs you to confirm access again.`, { kind: 'error' });
+    if (!(await verifyPermission(savedFileHandle))) {
+      toast(`The browser needs you to allow access to “${savedFileHandle.name}” again. Click Open and confirm.`, { kind: 'error' });
       return;
     }
-    await useRoot(savedHandle);
-    toast(`Opened “${savedHandle.name}”`, { kind: 'success' });
+    const docs = await readArchiveFromHandle(savedFileHandle);
+    enterArchive(docs, { file: savedFileHandle, name: savedFileHandle.name });
+    toast(`Opened “${savedFileHandle.name}”.`, { kind: 'success' });
   } catch (e) {
     console.error(e);
-    toast('Could not reconnect: ' + e.message, { kind: 'error' });
+    toast('Couldn’t reopen that file: ' + (e.message || e), { kind: 'error' });
+  }
+}
+
+// ---------- saving ----------
+// Write the whole archive back to family.html. With a handle (hosted, secure) it
+// writes in place; the first save in the hosted editor asks once where the file
+// should live. Everywhere else it downloads a fresh copy. A failed write never
+// loses the edit — it stays in memory and the user is offered a download.
+async function requestSave({ silent = false } = {}) {
+  if (app.mode !== 'archive') return;
+  const docs = currentDocs();
+  try {
+    if (canUseFilePickers() && !app.file) {
+      app.file = await pickSaveLocation(app.archiveName || 'family.html');
+      savedFileHandle = app.file;
+      app.archiveName = app.file.name;
+    }
+    const result = await saveArchive(docs, { handle: app.file });
+    app.dirty = false;
+    renderNav();
+    if (!silent) {
+      if (result.method === 'inplace') toast(`Saved to “${result.name}”.`, { kind: 'success' });
+      else toast('Saved — an updated family.html was downloaded. Keep this copy and back it up.', { kind: 'success', duration: 6000 });
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') { // cancelled the save-location picker
+      app.dirty = true; renderNav();
+      toast('Not saved yet — your changes are still here. Click Save when you’re ready to choose a location.', { duration: 6000 });
+      return;
+    }
+    console.error('The Tree: save failed', e);
+    app.dirty = true; renderNav();
+    const download = el('button', { type: 'button', class: 'btn btn-small',
+      onclick: () => { downloadArchive(currentDocs()); } }, 'Download a copy');
+    toast(el('span', {}, 'Couldn’t write the file — your edit is safe in this tab. ', download),
+      { kind: 'error', sticky: true });
   }
 }
 
 async function addPerson() {
   const { openPersonEditor } = await import('./views/edit.js');
-  openPersonEditor({ root: app.root, person: null });
+  openPersonEditor({ person: null });
 }
 
 // ---------- routing ----------
@@ -222,11 +263,11 @@ function safeDecode(s) { try { return decodeURIComponent(s); } catch { return s;
 function router() {
   const view = document.getElementById('view');
   if (!view) return;
-  const parts = location.hash.replace(/^#\/?/, '').split('/'); // e.g. ['tree','p-marcus']
+  const parts = location.hash.replace(/^#\/?/, '').split('/'); // e.g. ['tree','p-david']
   const route = parts[0] || 'tree';
   const id = parts[1] ? safeDecode(parts[1]) : null;
 
-  // The guide is static — reachable even before a folder or the demo is loaded.
+  // The guide is static — reachable even before an archive or the demo is loaded.
   if (route === 'guide') { clear(view); renderGuide(view); renderNav(); window.scrollTo(0, 0); return; }
 
   if (store.size === 0) {
@@ -249,20 +290,35 @@ function router() {
 // ---------- boot ----------
 async function boot() {
   renderChrome();
-  if (isSupported()) {
-    try { savedHandle = await getSavedHandle(); } catch { savedHandle = null; }
-  }
+
+  // The data this file already carries (a standalone family.html → open it straight away).
+  const embedded = loadEmbedded();
+
+  // Remember the last family.html we wrote, so a returning hosted user can one-click reopen.
+  try { savedFileHandle = await getSavedFileHandle(); } catch { savedFileHandle = null; }
+
   window.addEventListener('hashchange', router);
   window.addEventListener('data:changed', (e) => {
-    const focus = e.detail && e.detail.focus;
-    if (focus) go(`#/person/${focus}`); else router();
+    const detail = e.detail || {};
+    if (detail.focus) { app.focus = detail.focus; go(`#/person/${detail.focus}`); }
     router();
+    if (detail.persist) {
+      if (app.mode === 'archive') { app.dirty = true; renderNav(); requestSave(); }
+      else if (app.mode === 'demo') toast('Demo mode — changes live only in this tab and aren’t saved.', { duration: 5000 });
+    }
   });
-  window.addEventListener('archive:reconnect', () => { reconnect(); });
-  router();
 
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  if (embedded.length) {
+    // A file that already holds an archive. On the hosted page this is rare; on a
+    // double-clicked family.html it's the norm — render immediately, no landing.
+    enterArchive(embedded, { file: null, name: 'family.html' });
+  } else {
+    router(); // landing (or empty archive, once one is started)
+  }
+
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    // Resolve against the page, not this (blob-URL) module, so it finds the site-root sw.js.
+    navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href).catch(() => {});
   }
 }
 

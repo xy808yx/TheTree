@@ -6,8 +6,6 @@
 import { el, clear } from '../dom.js';
 import { store, displayName, lifespan } from '../store.js';
 import { scanLessons, storyProse } from '../parse.js';
-import { context } from '../main.js';
-import { photoURL } from '../fsa.js';
 import { marked } from '../vendor/marked.esm.js';
 import DOMPurify from '../vendor/purify.es.js';
 
@@ -47,7 +45,7 @@ function names(list) {
   }).join(', ');
 }
 
-function entry(p, root) {
+function entry(p) {
   const wrap = el('article', { class: 'book-entry' });
 
   const head = el('div', { class: 'book-head' },
@@ -59,17 +57,14 @@ function entry(p, root) {
   if (tagText) head.append(el('div', { class: 'book-tags' }, tagText));
   wrap.append(head);
 
-  // photos (only in a connected archive; demo has none on disk)
-  const photos = p.data.photos || [];
-  if (root && photos.length) {
+  // photos (embedded as data URIs on the person — present everywhere the file opens)
+  const photos = (p.data.photos || []).filter((ph) => ph.src);
+  if (photos.length) {
     const row = el('div', { class: 'book-photos' });
     for (const ph of photos) {
-      const fig = el('figure', { class: 'book-photo' });
-      row.append(fig);
-      photoURL(root, p.id, ph.file).then((url) => {
-        if (url) fig.append(el('img', { src: url, alt: ph.caption || '' }),
-          ph.caption ? el('figcaption', {}, ph.caption) : null);
-      });
+      row.append(el('figure', { class: 'book-photo' },
+        el('img', { src: ph.src, alt: ph.caption || '' }),
+        ph.caption ? el('figcaption', {}, ph.caption) : null));
     }
     wrap.append(row);
   }
@@ -108,7 +103,6 @@ function entry(p, root) {
 
 export function renderBook(view) {
   clear(view);
-  const { root } = context();
   const people = orderedPeople();
   const surname = dominantSurname();
   const title = surname ? `The ${surname} Family` : 'A Family Archive';
@@ -117,7 +111,8 @@ export function renderBook(view) {
   const toolbar = el('div', { class: 'book-toolbar' },
     el('div', { class: 'tree-crumb' }, 'A printable copy of the whole archive. Use “Save as PDF” to keep one forever.'),
     el('span', { style: { flex: '1' } }),
-    el('button', { class: 'btn btn-small', id: 'book-gedcom' }, 'Download GEDCOM'),
+    el('button', { class: 'btn btn-small', id: 'book-markdown', title: 'Every person and union as plain Markdown files, zipped — readable in any editor, forever.' }, 'Export Markdown'),
+    el('button', { class: 'btn btn-small', id: 'book-gedcom', title: 'For relatives on Ancestry, FamilySearch, or other genealogy software.' }, 'Export GEDCOM'),
     el('button', { class: 'btn btn-primary btn-small', onclick: () => window.print() }, 'Save as PDF / Print'));
 
   const book = el('div', { class: 'book' });
@@ -137,7 +132,7 @@ export function renderBook(view) {
 
   // entries
   const body = el('section', { class: 'book-body' });
-  for (const p of people) body.append(entry(p, root));
+  for (const p of people) body.append(entry(p));
   book.append(body);
 
   // lessons appendix
@@ -165,10 +160,16 @@ export function renderBook(view) {
 
   view.append(toolbar, book);
 
-  // GEDCOM export (lazy — keeps the gedcom serializer out of the app shell)
+  // Exports (lazy — keep the serializers out of the hot path; both are escape hatches
+  // so "one simple file" never costs "readable forever").
   const gedBtn = document.getElementById('book-gedcom');
   if (gedBtn) gedBtn.addEventListener('click', async () => {
     const { downloadGedcom } = await import('../gedcom.js');
     downloadGedcom(surname || 'family');
+  });
+  const mdBtn = document.getElementById('book-markdown');
+  if (mdBtn) mdBtn.addEventListener('click', async () => {
+    const { downloadMarkdownZip } = await import('../export.js');
+    downloadMarkdownZip(surname || 'family');
   });
 }

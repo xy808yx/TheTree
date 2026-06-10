@@ -4,8 +4,6 @@
 import { el, clear } from '../dom.js';
 import { store, displayName, lifespan } from '../store.js';
 import { scanLessons, storyProse } from '../parse.js';
-import { photoURL } from '../fsa.js';
-import { context } from '../main.js';
 import { marked } from '../vendor/marked.esm.js';
 import DOMPurify from '../vendor/purify.es.js';
 
@@ -60,20 +58,15 @@ function tagPills(tags) {
   return out;
 }
 
-function fillPhotos(container, root, person) {
+function fillPhotos(container, person) {
   const photos = person.data.photos || [];
   for (const ph of photos) {
     const cell = el('figure', { class: 'photo' });
-    const missing = el('div', { class: 'photo-missing' }, ph.caption || ph.file || 'Photo');
-    cell.append(missing, ph.caption ? el('figcaption', { class: 'photo-cap' }, ph.caption + (ph.date ? ` · ${ph.date}` : '')) : null);
+    cell.append(ph.src
+      ? el('img', { src: ph.src, alt: ph.caption || person.id, loading: 'lazy' })
+      : el('div', { class: 'photo-missing' }, ph.caption || 'Photo'));
+    if (ph.caption) cell.append(el('figcaption', { class: 'photo-cap' }, ph.caption + (ph.date ? ` · ${ph.date}` : '')));
     container.append(cell);
-    if (root) {
-      photoURL(root, person.id, ph.file).then((url) => {
-        if (!url) return;
-        const img = el('img', { src: url, alt: ph.caption || person.id, loading: 'lazy' });
-        missing.replaceWith(img);
-      });
-    }
   }
 }
 
@@ -82,7 +75,6 @@ export function renderPerson(view, id) {
   clear(view);
   if (!p) { view.append(el('p', { class: 'empty-note' }, 'No record for this person.')); return; }
 
-  const { root } = context();
   const aka = (p.data.names && p.data.names.also_known_as) || [];
   const wrap = el('article', { class: 'profile' });
 
@@ -104,7 +96,7 @@ export function renderPerson(view, id) {
     wrap.append(el('hr', { class: 'section-rule' }), el('h3', { class: 'section-title' }, 'Photographs'));
     const gallery = el('div', { class: 'gallery' });
     wrap.append(gallery);
-    fillPhotos(gallery, root, p);
+    fillPhotos(gallery, p);
   }
 
   // story
@@ -161,5 +153,5 @@ function monogram(p) {
 
 async function editPerson(p) {
   const { openPersonEditor } = await import('./edit.js');
-  openPersonEditor({ root: context().root, person: p });
+  openPersonEditor({ person: p });
 }

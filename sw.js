@@ -1,14 +1,13 @@
-// Offline app shell. Precaches the app CODE only — family data is read straight
-// from disk via the File System Access API and photos via object URLs, so they
-// never pass through here. Bump CACHE to ship updated code.
-const CACHE = 'thetree-v10';
+// Offline app shell for the hosted editor. The whole app is inlined into one
+// index.html now, so there's almost nothing to precache: the page itself, the PWA
+// bits, and the gazetteer (vendor/cities.js) that the editor lazy-loads to look up
+// place coordinates. Family data never passes through here — it lives inside the
+// family.html the user keeps. CACHE is auto-stamped by build.js with a content hash,
+// so every change ships a fresh cache (no stale-page serving) — don't edit it by hand.
+const CACHE = 'thetree-32069a205e';
 const ASSETS = [
-  './', './index.html', './styles.css', './manifest.webmanifest', './icon.svg',
-  './app/main.js', './app/dom.js', './app/store.js', './app/parse.js', './app/fsa.js', './app/geo.js', './app/gedcom.js', './app/sample-data.js',
-  './app/views/tree.js', './app/views/person.js', './app/views/timeline.js', './app/views/map.js',
-  './app/views/lessons.js', './app/views/query.js', './app/views/edit.js', './app/views/book.js', './app/views/guide.js',
-  './app/vendor/marked.esm.js', './app/vendor/js-yaml.js', './app/vendor/purify.es.js',
-  './app/vendor/cities.js', './app/vendor/worldmap.js',
+  './', './index.html', './manifest.webmanifest', './icon.svg',
+  './app/vendor/cities.js',
 ];
 
 self.addEventListener('install', (e) => {

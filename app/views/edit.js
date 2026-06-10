@@ -7,7 +7,8 @@
 
 import { el, clear, toast } from '../dom.js';
 import { store, displayName, uid, THEMES } from '../store.js';
-import { writePerson, writeUnion, importPhoto, verifyPermission, loadArchive } from '../fsa.js';
+import { importPhoto } from '../archive.js';
+import { app } from '../context.js';
 import { lookupPlace, parseLatLng } from '../geo.js';
 
 const STORY_PROMPTS = [
@@ -21,7 +22,7 @@ const STORY_PROMPTS = [
 
 function commaList(s) { return String(s || '').split(',').map((x) => x.trim()).filter(Boolean); }
 
-export function openPersonEditor({ root, person }) {
+export function openPersonEditor({ person }) {
   document.querySelectorAll('.modal-backdrop').forEach((m) => m.remove());
   const isNew = !person;
   const data = person ? JSON.parse(JSON.stringify(person.data)) : { id: uid('p'), unions: [], parents_union: null };
@@ -35,7 +36,7 @@ export function openPersonEditor({ root, person }) {
     hint ? el('div', { class: 'hint' }, hint) : null);
 
   // --- Identity ---
-  f.display = el('input', { type: 'text', value: names.display || '', placeholder: 'e.g. Eleanor Vance', autocomplete: 'off' });
+  f.display = el('input', { type: 'text', value: names.display || '', placeholder: 'e.g. Wong Ah-fook', autocomplete: 'off' });
   f.given = el('input', { type: 'text', value: names.given || '', autocomplete: 'off' });
   f.family = el('input', { type: 'text', value: names.family || '', autocomplete: 'off' });
   f.sex = el('select', {}, ...['', 'F', 'M', 'other'].map((v) =>
@@ -102,12 +103,11 @@ export function openPersonEditor({ root, person }) {
   const photoInput = el('input', { type: 'file', accept: 'image/*', multiple: true, onchange: (e) => addPhotos(e.target.files) });
   data.photos = data.photos || [];
   async function addPhotos(files) {
-    if (!root) { photoStatus.textContent = 'Photos save once you open an archive folder.'; return; }
     for (const file of files) {
       try {
-        const name = await importPhoto(root, data.id, file);
-        data.photos.push({ file: name, caption: '', date: '' });
-        photoStatus.textContent = `Added ${data.photos.length} photo${data.photos.length === 1 ? '' : 's'}.`;
+        const src = await importPhoto(file);
+        data.photos.push({ src, caption: '', date: '' });
+        photoStatus.textContent = `Added ${data.photos.length} photo${data.photos.length === 1 ? '' : 's'} — shrunk to fit and tucked into the file.`;
       } catch (err) {
         toast(err.message, { kind: 'error' });
         photoStatus.textContent = err.message;
@@ -117,20 +117,13 @@ export function openPersonEditor({ root, person }) {
 
   const err = el('div', { class: 'hint', style: { color: 'var(--oxblood)', marginTop: 'var(--s-3)' } });
 
-  // Lost folder access is the one way a save could silently fail to reach disk.
-  // Surface it loudly with a working Reconnect (handled in main.js) and keep the
-  // modal open so nothing the user typed is lost. Only one such toast at a time.
-  let lostToast = null;
-  function reportLostAccess(msg) {
-    const text = msg || 'The Tree needs permission to your folder again before it can save.';
-    err.textContent = text;
-    if (lostToast) lostToast.close();
-    const reconnect = el('button', { type: 'button', class: 'btn btn-small',
-      onclick: () => { if (lostToast) { lostToast.close(); lostToast = null; } window.dispatchEvent(new CustomEvent('archive:reconnect')); } }, 'Reconnect');
-    lostToast = toast(el('span', {}, text + ' ', reconnect), { kind: 'error', sticky: true });
-  }
-
-  async function save() {
+  // Apply the form to the in-memory store, then hand off to main.js to persist the
+  // whole archive (write family.html in place, or download a fresh copy). The store
+  // mutation can't half-apply to disk anymore — there is no disk write here — so the
+  // failure modes that needed an up-front permission check and heal-from-disk are
+  // gone. A failed file write is handled centrally in main.js, where the in-memory
+  // edit is kept (never lost) and the user is offered Reconnect / Download.
+  function save() {
     err.textContent = '';
     const display = f.display.value.trim();
     if (!display && !f.given.value.trim()) {
@@ -138,10 +131,6 @@ export function openPersonEditor({ root, person }) {
       f.display.focus();
       return;
     }
-    // Confirm write access BEFORE touching anything, so a save can never half-apply
-    // and still look successful. The Save click is a user gesture, so the browser can
-    // re-prompt here and silently re-grant in the common case.
-    if (root && !(await verifyPermission(root))) { reportLostAccess(); return; }
     names.display = display || [f.given.value, f.family.value].filter(Boolean).join(' ').trim();
     names.given = f.given.value.trim() || undefined;
     names.family = f.family.value.trim() || undefined;
@@ -158,29 +147,18 @@ export function openPersonEditor({ root, person }) {
     const body = f.story.value.trim();
 
     try {
-      await persistPerson(root, data, body);
-      await applyParents(root, data, f.parents.value || null, f.relation.value);
-      if (f.spouse.value) await applySpouse(root, data, f.spouse.value);
-      close();
-      window.dispatchEvent(new CustomEvent('data:changed', { detail: { focus: data.id } }));
-      toast(
-        isNew ? `Added ${names.display}.` : `Saved ${names.display}.`,
-        { kind: 'success' });
-      if (!root) toast('Demo mode — changes live only in this browser tab.', { duration: 5000 });
+      persistPerson(data, body);
+      applyParents(data, f.parents.value || null, f.relation.value);
+      if (f.spouse.value) applySpouse(data, f.spouse.value);
     } catch (e) {
-      console.error('The Tree: save failed', e); // never swallow the only diagnostic
-      const lostAccess = !!e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
-      if (root && lostAccess) {
-        // Folder access dropped mid-save. Re-sync memory with what's actually on disk
-        // so nothing is left half-applied in memory, then offer a Reconnect.
-        try { const { docs } = await loadArchive(root); store.loadDocs(docs); window.dispatchEvent(new CustomEvent('data:changed')); } catch { /* fall through to the message */ }
-        reportLostAccess('That didn’t save — The Tree lost access to your folder. Reconnect and try again.');
-      } else {
-        const msg = (e && e.message) || String(e);
-        err.textContent = 'Couldn’t save: ' + msg;
-        toast('Save failed: ' + msg, { kind: 'error' });
-      }
+      console.error('The Tree: edit failed', e); // never swallow the only diagnostic
+      err.textContent = 'Couldn’t apply that edit: ' + ((e && e.message) || String(e));
+      return;
     }
+    close();
+    // main.js re-renders and persists the archive (and reports saved / downloaded / not-yet-saved).
+    window.dispatchEvent(new CustomEvent('data:changed', { detail: { focus: data.id, persist: true } }));
+    toast(isNew ? `Added ${names.display}.` : `Saved ${names.display}.`, { kind: 'success' });
   }
 
   const backdrop = el('div', { class: 'modal-backdrop', onclick: (e) => { if (e.target === backdrop) close(); } });
@@ -225,14 +203,14 @@ export function openPersonEditor({ root, person }) {
     el('div', { class: 'collapse-body' },
       el('div', { class: 'form-grid' }, row('Former / maiden name', f.maiden), row('Also known as', f.aka)),
       el('div', { class: 'form-grid' }, row('Talents', f.talent, 'Comma-separated.'), row('Health notes', f.health, 'Comma-separated.')),
-      root ? row('Add photos', el('div', {}, photoInput, photoStatus), 'JPEG / PNG / GIF / WebP. HEIC isn’t browser-viewable.') : null,
+      row('Add photos', el('div', {}, photoInput, photoStatus), 'JPEG / PNG / GIF / WebP, shrunk to fit and stored inside the file. HEIC isn’t browser-viewable.'),
     ));
 
   backdrop.append(el('div', { class: 'modal' },
     el('h2', {}, isNew ? 'Add a person' : `Edit ${displayName(person)}`),
     el('p', { class: 'modal-sub' }, isNew
       ? 'A name is all that’s required. You can come back and fill in the rest.'
-      : `Editing ${displayName(person)}. Changes ${root ? 'save to your archive folder.' : 'live only in this demo tab.'}`),
+      : `Editing ${displayName(person)}. Changes ${app.mode === 'archive' ? 'save to your family.html.' : 'live only in this demo tab.'}`),
     identitySection,
     datesSection,
     storySection,
@@ -248,22 +226,20 @@ export function openPersonEditor({ root, person }) {
   f.display.focus();
 }
 
-// ---- persistence helpers (write files in archive mode; in-memory in demo) ----
-async function persistPerson(root, data, body) {
-  if (root) await writePerson(root, data, body);
+// ---- persistence helpers (mutate the in-memory store; main.js writes the file) ----
+function persistPerson(data, body) {
   store.upsertPerson({ data, body });
 }
-async function persistUnion(root, u) {
-  if (root) await writeUnion(root, u.data, u.body || '');
+function persistUnion(u) {
   store.upsertUnion({ data: u.data, body: u.body || '' });
 }
 
-async function applyParents(root, data, newPU, relation) {
+function applyParents(data, newPU, relation) {
   const oldPU = store.getPerson(data.id) ? store.getPerson(data.id).data.parents_union : null;
   // remove from old union's children if it changed
   if (oldPU && oldPU !== newPU) {
     const ou = store.getUnion(oldPU);
-    if (ou) { ou.data.children = (ou.data.children || []).filter((c) => c.person !== data.id); await persistUnion(root, ou); }
+    if (ou) { ou.data.children = (ou.data.children || []).filter((c) => c.person !== data.id); persistUnion(ou); }
   }
   data.parents_union = newPU || null;
   if (newPU) {
@@ -272,22 +248,22 @@ async function applyParents(root, data, newPU, relation) {
       const kids = u.data.children || (u.data.children = []);
       const entry = kids.find((c) => c.person === data.id);
       if (entry) entry.relation = relation; else kids.push({ person: data.id, relation });
-      await persistUnion(root, u);
+      persistUnion(u);
     }
   }
-  await persistPerson(root, data, store.getPerson(data.id) ? store.getPerson(data.id).body : '');
+  persistPerson(data, store.getPerson(data.id) ? store.getPerson(data.id).body : '');
 }
 
-async function applySpouse(root, data, spouseId) {
+function applySpouse(data, spouseId) {
   const exists = store.allUnions().find((u) => (u.data.partners || []).includes(data.id) && (u.data.partners || []).includes(spouseId));
   if (exists) return;
   const u = { data: { id: uid('u'), type: 'marriage', partners: [data.id, spouseId], status: 'married', children: [] }, body: '' };
-  await persistUnion(root, u);
+  persistUnion(u);
   for (const pid of [data.id, spouseId]) {
     const p = store.getPerson(pid);
     if (!p) continue;
     p.data.unions = [...new Set([...(p.data.unions || []), u.data.id])];
-    await persistPerson(root, p.data, p.body);
+    persistPerson(p.data, p.body);
   }
 }
 
