@@ -127,8 +127,15 @@ export function renderTree(view, focusId) {
 
   const zoomLabel = el('span', { class: 'tree-zoom-label', title: 'Zoom' }, '100%');
   const setScale = (s) => {
-    scale = Math.min(1.6, Math.max(0.4, s));
+    const next = Math.min(1.6, Math.max(0.4, s));
+    // zoom about the centre of the current viewport, not the canvas corner
+    const f = next / scale;
+    const cx = wrap.scrollLeft + wrap.clientWidth / 2;
+    const cy = wrap.scrollTop + wrap.clientHeight / 2;
+    scale = next;
     canvas.style.transform = `scale(${scale})`;
+    wrap.scrollLeft = cx * f - wrap.clientWidth / 2;
+    wrap.scrollTop = cy * f - wrap.clientHeight / 2;
     zoomLabel.textContent = Math.round(scale * 100) + '%';
   };
   const zoomGroup = el('div', { class: 'btn-group', role: 'group', 'aria-label': 'Zoom' },
@@ -146,10 +153,17 @@ export function renderTree(view, focusId) {
   const legend = el('div', { class: 'tree-legend' },
     el('span', { class: 'tree-legend-item' }, el('span', { class: 'tree-legend-swatch sex-F' }), 'Female'),
     el('span', { class: 'tree-legend-item' }, el('span', { class: 'tree-legend-swatch sex-M' }), 'Male'),
-    el('span', { class: 'tree-legend-item' }, el('span', { class: 'tree-legend-swatch focus' }), 'Click a card to re-center'),
   );
 
   view.append(toolbar, wrap, legend);
+
+  // Land with the focus card centred — on a phone (or a deep tree) it can
+  // otherwise sit a full screen away from the first thing you see. The wrap is
+  // already connected, so reading clientWidth forces layout and we can scroll
+  // synchronously (rAF can stall in hidden tabs).
+  const focusNode = byId.get(focus.id);
+  wrap.scrollLeft = focusNode.px * scale + (NODE_W * scale) / 2 - wrap.clientWidth / 2;
+  wrap.scrollTop = focusNode.py * scale + (NODE_H * scale) / 2 - wrap.clientHeight / 2;
 }
 
 function card(n, focusId) {

@@ -4,7 +4,7 @@
 // place coordinates. Family data never passes through here — it lives inside the
 // family.html the user keeps. CACHE is auto-stamped by build.js with a content hash,
 // so every change ships a fresh cache (no stale-page serving) — don't edit it by hand.
-const CACHE = 'thetree-32069a205e';
+const CACHE = 'thetree-e17f624b28';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './icon.svg',
   './app/vendor/cities.js',

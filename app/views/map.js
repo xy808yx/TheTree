@@ -95,8 +95,11 @@ export function renderMap(view) {
   svg.append(s('path', { d: landPath(), class: 'map-land', 'fill-rule': 'evenodd' }));
 
   const arcLayer = s('g', { class: 'map-arcs' });
-  for (const j of journeys) arcLayer.append(s('path', { d: arcPath(j.from, j.to), class: 'map-arc' },
-    s('title', {}, `${displayName(j.person)}: ${j.from.name || 'birthplace'} → ${j.to.name || 'death'}`)));
+  journeys.forEach((j, i) => arcLayer.append(s('path', {
+    d: arcPath(j.from, j.to), class: 'map-arc',
+    pathLength: 1,                            // lets the CSS draw-in animate every arc the same way
+    style: `animation-delay: ${120 + i * 110}ms`, // journeys appear one after another
+  }, s('title', {}, `${displayName(j.person)}: ${j.from.name || 'birthplace'} → ${j.to.name || 'death'}`))));
   svg.append(arcLayer);
 
   const detail = el('aside', { class: 'map-side' });
@@ -190,8 +193,9 @@ export function renderMap(view) {
 
   view.append(wrap);
 
-  // First fit: wait for layout so mapWrap.clientWidth is real.
-  requestAnimationFrame(() => setScale(scale));
+  // First fit: the wrap is connected, so reading clientWidth forces layout —
+  // size synchronously (rAF can stall in hidden tabs).
+  setScale(scale);
 
   // Window resize: re-fit the canvas to the new wrap width. ResizeObserver
   // catches both window resizes and sidebar layout changes (e.g. the 760px

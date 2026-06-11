@@ -29,7 +29,7 @@ export function renderQuery(view) {
     if (!people.length) { results.append(el('p', { class: 'empty-note' }, 'No one matches.')); return; }
     for (const p of people) {
       results.append(el('a', { class: 'person-row', href: `#/person/${p.id}` },
-        el('span', {}, displayName(p)),
+        el('span', { class: 'pr-name' }, displayName(p)),
         el('span', { class: 'pr-life' }, lifespan(p))));
     }
   }
@@ -41,7 +41,7 @@ export function renderQuery(view) {
       cloud.append(el('button', {
         class: 'tag-chip' + (state.tag === key ? ' is-active' : ''),
         onclick: () => { state.tag = state.tag === key ? null : key; state.query = ''; search.value = ''; renderCloud(); renderResults(); },
-      }, `${t.category}: ${t.value}`, el('span', { class: 'tc-count' }, t.people.length)));
+      }, el('span', { class: 'tc-cat' }, t.category), t.value, el('span', { class: 'tc-count' }, t.people.length)));
     }
   }
 

@@ -179,9 +179,9 @@ export function openPersonEditor({ person }) {
   const datesSection = el('div', { class: 'form-section' },
     el('div', { class: 'form-section-head' }, 'Dates & places'),
     el('div', { class: 'form-grid' },
-      row('Born', f.birth, 'Plain language is fine — “1938”, “abt 1850”, or a full date.'),
+      row('Born', f.birth, 'Any precision works — a year alone is enough.'),
       row('Birthplace', el('div', {}, f.birthPlace, birthGeo.wrap), 'Coordinates fill in offline.'),
-      row('Died', f.death, 'Leave blank if living.'),
+      row('Died', f.death),
       row('Place of death', el('div', {}, f.deathPlace, deathGeo.wrap))),
   );
 

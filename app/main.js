@@ -50,10 +50,10 @@ function renderChrome() {
   renderNav();
 }
 
-function treeGlyph() {
+function treeGlyph(size = 20) {
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('width', '20'); svg.setAttribute('height', '20');
+  svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('width', size); svg.setAttribute('height', size);
   const p = document.createElementNS(NS, 'path');
   p.setAttribute('d', 'M12 2a4 4 0 0 1 3.5 6 4 4 0 0 1-2.5 7.4V22h-2v-6.6A4 4 0 0 1 8.5 8 4 4 0 0 1 12 2z');
   p.setAttribute('fill', 'currentColor');
@@ -93,7 +93,7 @@ function renderNav() {
       app.file ? 'Save' : 'Save / download'));
   } else {
     right.append(el('span', { class: 'demo-pill', title: 'You are exploring sample data. Nothing you change is saved.' },
-      el('span', { class: 'dot' }), 'Demo — not saved'));
+      el('span', { class: 'dot' }), 'Demo', el('span', { class: 'pill-more' }, ' — not saved')));
     right.append(el('button', { class: 'btn btn-small', onclick: () => backToLanding() }, 'Start your own'));
   }
   right.append(el('button', { class: 'btn btn-small btn-primary', onclick: () => addPerson() }, '+ Add person'));
@@ -122,7 +122,7 @@ function renderLanding(view) {
           'When you Save, an updated family.html downloads. For one-click saving in place, open this page in Chrome or Edge on a desktop.'));
 
   view.append(el('section', { class: 'landing' },
-    el('div', { class: 'landing-mark', 'aria-hidden': 'true' }, '· · ·'),
+    el('div', { class: 'landing-mark', 'aria-hidden': 'true' }, treeGlyph(34)),
     el('h1', { class: 'landing-title' }, 'The Tree'),
     el('p', { class: 'landing-sub' },
       'A quiet archive of who your family was — their stories, their hard-won lessons, and the mistakes worth not repeating.'),
@@ -138,7 +138,7 @@ function renderLanding(view) {
 function renderEmptyArchive(view) {
   clear(view);
   view.append(el('section', { class: 'landing' },
-    el('div', { class: 'landing-mark', 'aria-hidden': 'true' }, '· · ·'),
+    el('div', { class: 'landing-mark', 'aria-hidden': 'true' }, treeGlyph(34)),
     el('p', { class: 'results-caption' }, 'Your archive'),
     el('h1', { class: 'landing-title' }, app.archiveName || 'family.html'),
     el('p', { class: 'landing-sub' }, 'An empty room. Start by adding one person — a name and a single story is enough. You can fill the rest in later.'),

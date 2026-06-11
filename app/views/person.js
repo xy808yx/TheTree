@@ -78,7 +78,11 @@ export function renderPerson(view, id) {
   const aka = (p.data.names && p.data.names.also_known_as) || [];
   const wrap = el('article', { class: 'profile' });
 
-  const portrait = el('div', { class: 'portrait-blank' }, monogram(p));
+  // the first photograph stands in as the portrait; a monogram bookplate otherwise
+  const firstPhoto = (p.data.photos || []).find((ph) => ph.src);
+  const portrait = firstPhoto
+    ? el('img', { class: 'profile-portrait', src: firstPhoto.src, alt: firstPhoto.caption || displayName(p) })
+    : el('div', { class: 'portrait-blank' }, monogram(p));
   const head = el('header', { class: 'profile-head' },
     portrait,
     el('div', {},
@@ -105,15 +109,17 @@ export function renderPerson(view, id) {
     wrap.append(el('hr', { class: 'section-rule' }), el('h3', { class: 'section-title' }, 'Story'), mdBlock(prose));
   }
 
-  // lessons
-  const lessons = scanLessons(p.body);
+  // lessons — mistakes first, as everywhere (the via-negativa lens)
+  const lessons = scanLessons(p.body).sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'mistake' ? -1 : 1));
   if (lessons.length) {
     wrap.append(el('hr', { class: 'section-rule' }), el('h3', { class: 'section-title' }, 'Lessons & Mistakes'));
     const list = el('ul', { class: 'lesson-list' });
     for (const l of lessons) {
       list.append(el('li', { class: 'lesson' + (l.kind === 'mistake' ? ' is-mistake' : '') },
-        el('span', { class: 'lesson-theme' }, l.theme),
-        el('div', {}, el('span', { class: 'lesson-kind' }, l.kind === 'mistake' ? 'Mistake — ' : 'Lesson — '), l.text)));
+        el('p', { class: 'lesson-text' }, l.text),
+        el('div', { class: 'lesson-meta' },
+          el('span', { class: 'lesson-kind' }, l.kind === 'mistake' ? 'Mistake' : 'Lesson'),
+          el('span', { class: 'lesson-theme' }, l.theme))));
     }
     wrap.append(list);
   }
