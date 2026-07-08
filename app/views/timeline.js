@@ -87,7 +87,7 @@ export function renderTimeline(view) {
   const wrap = el('section', { class: 'timeline' },
     el('h1', { class: 'page-title' }, 'Timeline'),
     el('p', { class: 'page-intro' },
-      'The family read forward through the years — births, marriages, and partings, in the order they happened.'));
+      'The family read forward through the years: births, marriages, and partings, in the order they happened.'));
 
   if (!events.length) {
     wrap.append(el('p', { class: 'empty-note' }, 'No dated events yet. Add birth or death years to people, or dates to marriages, and they will appear here.'));

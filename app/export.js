@@ -27,11 +27,11 @@ function withoutPhotoData(data) {
 const README = `# A family archive, as plain files
 
 These are the people and relationships from a family.html archive, written out as
-plain Markdown — one file per person in \`people/\`, one per marriage or partnership
+plain Markdown: one file per person in \`people/\`, one per marriage or partnership
 in \`unions/\`. Open any of them in a text editor; no app required, now or ever.
 
 This is an export for safekeeping and for genealogy tools. The living, browsable
-archive is the single \`family.html\` file these came from — open that in a browser
+archive is the single \`family.html\` file these came from. Open that in a browser
 to read the tree, timeline, map, and book, or to keep editing.
 `;
 

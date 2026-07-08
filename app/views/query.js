@@ -52,7 +52,7 @@ export function renderQuery(view) {
 
   const wrap = el('section', { class: 'query' },
     el('h1', { class: 'page-title' }, 'People'),
-    el('p', { class: 'page-intro' }, 'Search by name, or browse by trait — talents the family shared, or health threads to know about.'),
+    el('p', { class: 'page-intro' }, 'Search by name, or browse by trait: talents the family shared, or health threads to know about.'),
     search,
     tags.length ? el('p', { class: 'section-title', style: { marginTop: '1.25rem' } }, 'Browse by trait') : null,
     cloud,

@@ -81,7 +81,7 @@ function entry(p) {
     const ul = el('ul', { class: 'book-lessons' });
     for (const l of lessons) {
       ul.append(el('li', { class: 'book-lesson' + (l.kind === 'mistake' ? ' is-mistake' : '') },
-        el('span', { class: 'book-lesson-kind' }, (l.kind === 'mistake' ? 'Mistake' : 'Lesson') + ` — ${l.theme}: `),
+        el('span', { class: 'book-lesson-kind' }, (l.kind === 'mistake' ? 'Mistake' : 'Lesson') + `, ${l.theme}: `),
         l.text));
     }
     wrap.append(ul);
@@ -111,14 +111,14 @@ export function renderBook(view) {
   const toolbar = el('div', { class: 'book-toolbar' },
     el('div', { class: 'tree-crumb' }, 'A printable copy of the whole archive. Use “Save as PDF” to keep one forever.'),
     el('span', { style: { flex: '1' } }),
-    el('button', { class: 'btn btn-small', id: 'book-markdown', title: 'Every person and union as plain Markdown files, zipped — readable in any editor, forever.' }, 'Export Markdown'),
+    el('button', { class: 'btn btn-small', id: 'book-markdown', title: 'Every person and union as plain Markdown files, zipped and readable in any editor, forever.' }, 'Export Markdown'),
     el('button', { class: 'btn btn-small', id: 'book-gedcom', title: 'For relatives on Ancestry, FamilySearch, or other genealogy software.' }, 'Export GEDCOM'),
     el('button', { class: 'btn btn-primary btn-small', onclick: () => window.print() }, 'Save as PDF / Print'));
 
   const book = el('div', { class: 'book' });
 
   if (!people.length) {
-    book.append(el('p', { class: 'empty-note' }, 'The archive is empty — add a person to begin the book.'));
+    book.append(el('p', { class: 'empty-note' }, 'The archive is empty. Add a person to begin the book.'));
     view.append(toolbar, book);
     return;
   }
@@ -127,7 +127,7 @@ export function renderBook(view) {
   book.append(el('section', { class: 'book-title-page' },
     el('div', { class: 'book-tp-mark' }, '❦'),
     el('h1', { class: 'book-tp-title' }, title),
-    el('p', { class: 'book-tp-sub' }, 'A family archive — their stories, their hard-won lessons, and the mistakes worth not repeating.'),
+    el('p', { class: 'book-tp-sub' }, 'A family archive: their stories, their hard-won lessons, and the mistakes worth not repeating.'),
     el('p', { class: 'book-tp-meta' }, `${people.length} lives · compiled ${today}`)));
 
   // entries
@@ -148,9 +148,9 @@ export function renderBook(view) {
       const ul = el('ul', { class: 'book-lessons' });
       for (const it of items) {
         ul.append(el('li', { class: 'book-lesson' + (it.kind === 'mistake' ? ' is-mistake' : '') },
-          el('span', { class: 'book-lesson-kind' }, (it.kind === 'mistake' ? 'Mistake' : 'Lesson') + ' — '),
+          el('span', { class: 'book-lesson-kind' }, (it.kind === 'mistake' ? 'Mistake' : 'Lesson') + ': '),
           it.text || '(no detail)',
-          el('span', { class: 'book-lesson-who' }, ` — ${displayName(it.person)}`)));
+          el('span', { class: 'book-lesson-who' }, ` · ${displayName(it.person)}`)));
       }
       sec.append(ul);
       ap.append(sec);

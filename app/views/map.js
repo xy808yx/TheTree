@@ -75,11 +75,11 @@ export function renderMap(view) {
 
   const wrap = el('section', { class: 'map' },
     el('h1', { class: 'page-title' }, 'Map'),
-    el('p', { class: 'page-intro' }, 'Where the family came from and where they went — each line a life’s journey from birthplace to the place they died.'));
+    el('p', { class: 'page-intro' }, 'Where the family came from and where they went. Each line is a life’s journey from birthplace to the place they died.'));
 
   if (!places.length) {
     wrap.append(el('p', { class: 'empty-note' },
-      'No places located yet. Add a birthplace or place of death to someone — the editor will look up its coordinates offline and pin it here.'));
+      'No places located yet. Add a birthplace or place of death to someone, and the editor will look up its coordinates offline and pin it here.'));
     if (unlocated.length) wrap.append(el('p', { class: 'page-intro', style: { marginTop: '.5rem' } }, `${unlocated.length} ${unlocated.length === 1 ? 'person has' : 'people have'} a place recorded but no coordinates yet.`));
     view.append(wrap);
     return;
@@ -119,7 +119,7 @@ export function renderMap(view) {
     const r = 4 + Math.min(9, Math.sqrt(n) * 2.2);
     const cx = projX(pl.lng), cy = projY(pl.lat);
     const dot = s('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: r.toFixed(1), class: 'map-dot', tabindex: '0', role: 'button' },
-      s('title', {}, `${pl.name || 'Place'} — ${n} ${n === 1 ? 'person' : 'people'}`));
+      s('title', {}, `${pl.name || 'Place'} · ${n} ${n === 1 ? 'person' : 'people'}`));
     dot.addEventListener('click', () => { showPlace(pl); highlight(cx, cy); });
     dot.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showPlace(pl); highlight(cx, cy); } });
     dots.append(dot);
@@ -171,7 +171,7 @@ export function renderMap(view) {
     for (const j of journeys.sort((a, b) => displayName(a.person).localeCompare(displayName(b.person)))) {
       jl.append(el('li', {},
         el('a', { class: 'tl-person', href: `#/person/${j.person.id}` }, displayName(j.person)),
-        el('span', { class: 'journey-route' }, `${j.from.name || '—'} → ${j.to.name || '—'}`)));
+        el('span', { class: 'journey-route' }, `${j.from.name || 'unknown'} → ${j.to.name || 'unknown'}`)));
     }
     detail.append(jl);
   } else {
@@ -188,7 +188,7 @@ export function renderMap(view) {
 
   if (unlocated.length) {
     wrap.append(el('p', { class: 'map-unlocated' },
-      `${unlocated.length} ${unlocated.length === 1 ? 'person is' : 'people are'} not on the map yet — no place coordinates recorded.`));
+      `${unlocated.length} ${unlocated.length === 1 ? 'person is' : 'people are'} not on the map yet. No place coordinates recorded.`));
   }
 
   view.append(wrap);

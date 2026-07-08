@@ -8848,8 +8848,8 @@ parents_union: null
 ---
 ## Story
 The village schoolmaster of a small Toishan hamlet. Never travelled further
-than Guangzhou; insisted that every child in the family — sons and daughters
-both — learn to read and write.
+than Guangzhou; insisted that every child in the family, sons and daughters
+both, learn to read and write.
 
 ## Lessons & Mistakes
 - {lesson: work} "Teach a daughter to read and you teach two generations." He charged half-fees for girls when the village called the practice wasteful.`,
@@ -8940,7 +8940,7 @@ occupation, and three children's school fees.
 
 ## Lessons & Mistakes
 - {lesson: work} "An hour at the bench is an hour saved later." Refused to take shortcuts at the forge even on the simplest piece. His work passed inspection in three colonies.
-- {lesson: money} Carried no debt his whole working life. "Owe no one — you can refuse any job and still sleep."`,
+- {lesson: money} Carried no debt his whole working life. "Owe no one, and you can refuse any job and still sleep."`,
 
   `---
 id: p-yukfan
@@ -8963,7 +8963,7 @@ first time on her wedding day. Ran the shop ledger and translated for every
 European customer who walked in.
 
 ## Lessons & Mistakes
-- {lesson: work} "A woman with three languages is never alone." She handled the British colonial accounts, the Hokkien suppliers, and her in-laws' village letters — all from the same desk.`,
+- {lesson: work} "A woman with three languages is never alone." She handled the British colonial accounts, the Hokkien suppliers, and her in-laws' village letters, all from the same desk.`,
 
   // ---- Generation 3: the war and the second migration ----
   `---
@@ -8988,8 +8988,8 @@ Emigrated to Vancouver in 1950 with a new wife and an infant daughter; built
 a family practice in Chinatown that ran until the year he died.
 
 ## Lessons & Mistakes
-- {lesson: work} Refused to specialise. "A neighbourhood doctor sees what hospitals never do — and they remember you for it for forty years."
-- {mistake: health} Drank for a decade after the war to sleep through what he had seen on the hospital ships. Lost his savings, alienated his children, almost lost the practice. Stopped on his fiftieth birthday and never touched it again — but said the years he lost never came back.`,
+- {lesson: work} Refused to specialise. "A neighbourhood doctor sees what hospitals never do, and they remember you for it for forty years."
+- {mistake: health} Drank for a decade after the war to sleep through what he had seen on the hospital ships. Lost his savings, alienated his children, almost lost the practice. Stopped on his fiftieth birthday and never touched it again, but said the years he lost never came back.`,
 
   `---
 id: p-sauyi
@@ -9053,7 +9053,7 @@ Born eight months before her mother died. Carried across the Pacific by
 Mei-ling at three, raised in Vancouver believing for years that Mei-ling
 was her birth mother. Read law at the LSE on a Commonwealth scholarship,
 called to the Bar in 1972, never left London. Spent a forty-year career on
-immigration appeals — much of it for families with stories that began the
+immigration appeals, much of it for families with stories that began the
 way hers did.
 
 ## Lessons & Mistakes
@@ -9074,7 +9074,7 @@ parents_union: "u-hongkeung-meiling"
 ## Story
 First child born after the move to Canada. Mechanical engineer; spent
 thirty-two years designing pulp-mill machinery up and down the Fraser
-Valley. Quiet, steady, and — by his own admission — never as comfortable in
+Valley. Quiet, steady, and, by his own admission, never as comfortable in
 Cantonese as he wished he had been.
 
 ## Lessons & Mistakes
@@ -9138,7 +9138,7 @@ parents_union: null
 Trained as a nurse in Dublin, emigrated to Vancouver in 1978 on a
 two-year contract that turned into a life. Met David at a Lions Gate
 Hospital fundraiser; married 1983. Held the Wong-O'Sullivan Christmas
-table together — turkey on one end, har gow on the other — for four
+table together (turkey on one end, har gow on the other) for four
 decades.`,
 
   // ---- Generation 5 ----
@@ -9232,7 +9232,7 @@ children:
 ## Notes
 Met in Hong Kong in 1948; married within the year. Mei-ling raised Karen as
 her own from age three, adopted Susan as a newborn in 1957, and took in
-Daniel — Hong-keung's son from before the marriage — when he reached Canada
+Daniel, Hong-keung's son from before the marriage, when he reached Canada
 in 1983.`,
 
   `---
@@ -9530,7 +9530,7 @@ function entry(p) {
     const ul = el('ul', { class: 'book-lessons' });
     for (const l of lessons) {
       ul.append(el('li', { class: 'book-lesson' + (l.kind === 'mistake' ? ' is-mistake' : '') },
-        el('span', { class: 'book-lesson-kind' }, (l.kind === 'mistake' ? 'Mistake' : 'Lesson') + ` — ${l.theme}: `),
+        el('span', { class: 'book-lesson-kind' }, (l.kind === 'mistake' ? 'Mistake' : 'Lesson') + `, ${l.theme}: `),
         l.text));
     }
     wrap.append(ul);
@@ -9560,14 +9560,14 @@ export function renderBook(view) {
   const toolbar = el('div', { class: 'book-toolbar' },
     el('div', { class: 'tree-crumb' }, 'A printable copy of the whole archive. Use “Save as PDF” to keep one forever.'),
     el('span', { style: { flex: '1' } }),
-    el('button', { class: 'btn btn-small', id: 'book-markdown', title: 'Every person and union as plain Markdown files, zipped — readable in any editor, forever.' }, 'Export Markdown'),
+    el('button', { class: 'btn btn-small', id: 'book-markdown', title: 'Every person and union as plain Markdown files, zipped and readable in any editor, forever.' }, 'Export Markdown'),
     el('button', { class: 'btn btn-small', id: 'book-gedcom', title: 'For relatives on Ancestry, FamilySearch, or other genealogy software.' }, 'Export GEDCOM'),
     el('button', { class: 'btn btn-primary btn-small', onclick: () => window.print() }, 'Save as PDF / Print'));
 
   const book = el('div', { class: 'book' });
 
   if (!people.length) {
-    book.append(el('p', { class: 'empty-note' }, 'The archive is empty — add a person to begin the book.'));
+    book.append(el('p', { class: 'empty-note' }, 'The archive is empty. Add a person to begin the book.'));
     view.append(toolbar, book);
     return;
   }
@@ -9576,7 +9576,7 @@ export function renderBook(view) {
   book.append(el('section', { class: 'book-title-page' },
     el('div', { class: 'book-tp-mark' }, '❦'),
     el('h1', { class: 'book-tp-title' }, title),
-    el('p', { class: 'book-tp-sub' }, 'A family archive — their stories, their hard-won lessons, and the mistakes worth not repeating.'),
+    el('p', { class: 'book-tp-sub' }, 'A family archive: their stories, their hard-won lessons, and the mistakes worth not repeating.'),
     el('p', { class: 'book-tp-meta' }, `${people.length} lives · compiled ${today}`)));
 
   // entries
@@ -9597,9 +9597,9 @@ export function renderBook(view) {
       const ul = el('ul', { class: 'book-lessons' });
       for (const it of items) {
         ul.append(el('li', { class: 'book-lesson' + (it.kind === 'mistake' ? ' is-mistake' : '') },
-          el('span', { class: 'book-lesson-kind' }, (it.kind === 'mistake' ? 'Mistake' : 'Lesson') + ' — '),
+          el('span', { class: 'book-lesson-kind' }, (it.kind === 'mistake' ? 'Mistake' : 'Lesson') + ': '),
           it.text || '(no detail)',
-          el('span', { class: 'book-lesson-who' }, ` — ${displayName(it.person)}`)));
+          el('span', { class: 'book-lesson-who' }, ` · ${displayName(it.person)}`)));
       }
       sec.append(ul);
       ap.append(sec);
@@ -9639,10 +9639,10 @@ export function renderLessons(view) {
   const wrap = el('section', { class: 'lessons' },
     el('h1', { class: 'page-title' }, 'Family Lessons'),
     el('p', { class: 'lessons-intro' },
-      'Hard-won wisdom and cautionary tales, gathered from across the family and grouped by theme — written on each person, collected here.'),
+      'Hard-won wisdom and cautionary tales, gathered from across the family and grouped by theme. Written on each person, collected here.'),
     el('div', { class: 'legend-inline' },
       el('span', { class: 'legend-item' }, el('span', { class: 'legend-dot' }), 'Lesson'),
-      el('span', { class: 'legend-item' }, el('span', { class: 'legend-dot is-mistake' }), 'Mistake — shown first, the via-negativa lens'),
+      el('span', { class: 'legend-item' }, el('span', { class: 'legend-dot is-mistake' }), 'Mistake, shown first: the via-negativa lens'),
     ));
 
   if (!themes.length) {
@@ -9751,11 +9751,11 @@ export function renderMap(view) {
 
   const wrap = el('section', { class: 'map' },
     el('h1', { class: 'page-title' }, 'Map'),
-    el('p', { class: 'page-intro' }, 'Where the family came from and where they went — each line a life’s journey from birthplace to the place they died.'));
+    el('p', { class: 'page-intro' }, 'Where the family came from and where they went. Each line is a life’s journey from birthplace to the place they died.'));
 
   if (!places.length) {
     wrap.append(el('p', { class: 'empty-note' },
-      'No places located yet. Add a birthplace or place of death to someone — the editor will look up its coordinates offline and pin it here.'));
+      'No places located yet. Add a birthplace or place of death to someone, and the editor will look up its coordinates offline and pin it here.'));
     if (unlocated.length) wrap.append(el('p', { class: 'page-intro', style: { marginTop: '.5rem' } }, `${unlocated.length} ${unlocated.length === 1 ? 'person has' : 'people have'} a place recorded but no coordinates yet.`));
     view.append(wrap);
     return;
@@ -9795,7 +9795,7 @@ export function renderMap(view) {
     const r = 4 + Math.min(9, Math.sqrt(n) * 2.2);
     const cx = projX(pl.lng), cy = projY(pl.lat);
     const dot = s('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: r.toFixed(1), class: 'map-dot', tabindex: '0', role: 'button' },
-      s('title', {}, `${pl.name || 'Place'} — ${n} ${n === 1 ? 'person' : 'people'}`));
+      s('title', {}, `${pl.name || 'Place'} · ${n} ${n === 1 ? 'person' : 'people'}`));
     dot.addEventListener('click', () => { showPlace(pl); highlight(cx, cy); });
     dot.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showPlace(pl); highlight(cx, cy); } });
     dots.append(dot);
@@ -9847,7 +9847,7 @@ export function renderMap(view) {
     for (const j of journeys.sort((a, b) => displayName(a.person).localeCompare(displayName(b.person)))) {
       jl.append(el('li', {},
         el('a', { class: 'tl-person', href: `#/person/${j.person.id}` }, displayName(j.person)),
-        el('span', { class: 'journey-route' }, `${j.from.name || '—'} → ${j.to.name || '—'}`)));
+        el('span', { class: 'journey-route' }, `${j.from.name || 'unknown'} → ${j.to.name || 'unknown'}`)));
     }
     detail.append(jl);
   } else {
@@ -9864,7 +9864,7 @@ export function renderMap(view) {
 
   if (unlocated.length) {
     wrap.append(el('p', { class: 'map-unlocated' },
-      `${unlocated.length} ${unlocated.length === 1 ? 'person is' : 'people are'} not on the map yet — no place coordinates recorded.`));
+      `${unlocated.length} ${unlocated.length === 1 ? 'person is' : 'people are'} not on the map yet. No place coordinates recorded.`));
   }
 
   view.append(wrap);
@@ -10110,7 +10110,7 @@ export function renderQuery(view) {
 
   const wrap = el('section', { class: 'query' },
     el('h1', { class: 'page-title' }, 'People'),
-    el('p', { class: 'page-intro' }, 'Search by name, or browse by trait — talents the family shared, or health threads to know about.'),
+    el('p', { class: 'page-intro' }, 'Search by name, or browse by trait: talents the family shared, or health threads to know about.'),
     search,
     tags.length ? el('p', { class: 'section-title', style: { marginTop: '1.25rem' } }, 'Browse by trait') : null,
     cloud,
@@ -10212,7 +10212,7 @@ export function renderTimeline(view) {
   const wrap = el('section', { class: 'timeline' },
     el('h1', { class: 'page-title' }, 'Timeline'),
     el('p', { class: 'page-intro' },
-      'The family read forward through the years — births, marriages, and partings, in the order they happened.'));
+      'The family read forward through the years: births, marriages, and partings, in the order they happened.'));
 
   if (!events.length) {
     wrap.append(el('p', { class: 'empty-note' }, 'No dated events yet. Add birth or death years to people, or dates to marriages, and they will appear here.'));
@@ -10403,7 +10403,7 @@ export function renderTree(view, focusId) {
     el('button', { class: 'btn btn-small', title: 'Zoom in', 'aria-label': 'Zoom in', onclick: () => setScale(scale + 0.15) }, '+'));
 
   const toolbar = el('div', { class: 'tree-toolbar' },
-    el('span', { class: 'tree-crumb' }, 'Centered on ', el('strong', {}, displayName(focus)), ' — click any card to re-center'),
+    el('span', { class: 'tree-crumb' }, 'Centered on ', el('strong', {}, displayName(focus)), '. Click any card to re-center.'),
     el('a', { class: 'btn btn-small', href: `#/person/${focus.id}` }, 'Open profile'),
     el('span', { class: 'toolbar-spacer' }),
     zoomGroup);
@@ -10431,7 +10431,7 @@ function card(n, focusId) {
   const c = el('div', {
     class: 'node-card' + sexClass + (isFocus ? ' is-focus' : ''),
     style: { left: n.px + 'px', top: n.py + 'px' },
-    title: isFocus ? 'This is the focus — click to open profile' : `Click to center on ${displayName(p)}`,
+    title: isFocus ? 'This is the focus. Click to open profile.' : `Click to center on ${displayName(p)}`,
     onclick: () => { if (isFocus) go(`#/person/${p.id}`); else go(`#/tree/${p.id}`); },
   },
     el('div', { class: 'node-name' }, displayName(p)),
@@ -10526,7 +10526,7 @@ export function loadEmbedded() {
 function extractDocsFromHTML(text) {
   const doc = new DOMParser().parseFromString(String(text || ''), 'text/html');
   const el = doc.getElementById(DATA_ID);
-  if (!el) throw new Error('That file isn’t a family.html archive — no embedded family data was found in it.');
+  if (!el) throw new Error('That file isn’t a family.html archive. No embedded family data was found in it.');
   return parseDocsJSON(el.textContent);
 }
 
@@ -10766,11 +10766,11 @@ function withoutPhotoData(data) {
 const README = `# A family archive, as plain files
 
 These are the people and relationships from a family.html archive, written out as
-plain Markdown — one file per person in \`people/\`, one per marriage or partnership
+plain Markdown: one file per person in \`people/\`, one per marriage or partnership
 in \`unions/\`. Open any of them in a text editor; no app required, now or ever.
 
 This is an export for safekeeping and for genealogy tools. The living, browsable
-archive is the single \`family.html\` file these came from — open that in a browser
+archive is the single \`family.html\` file these came from. Open that in a browser
 to read the tree, timeline, map, and book, or to keep editing.
 `;
 
@@ -11046,7 +11046,7 @@ export function openPersonEditor({ person }) {
   f.given = el('input', { type: 'text', value: names.given || '', autocomplete: 'off' });
   f.family = el('input', { type: 'text', value: names.family || '', autocomplete: 'off' });
   f.sex = el('select', {}, ...['', 'F', 'M', 'other'].map((v) =>
-    el('option', { value: v, selected: (data.sex || '') === v || undefined }, v ? ({F:'Female', M:'Male', other:'Other'})[v] : '—')));
+    el('option', { value: v, selected: (data.sex || '') === v || undefined }, v ? ({F:'Female', M:'Male', other:'Other'})[v] : 'Unspecified')));
 
   // --- Dates & places ---
   f.birth = el('input', { type: 'text', value: (data.birth && data.birth.date) || '', placeholder: 'e.g. 1938-04-12, 1938, or “abt 1850”' });
@@ -11059,7 +11059,7 @@ export function openPersonEditor({ person }) {
 
   // --- Story ---
   f.story = el('textarea', {
-    placeholder: 'A few sentences are enough. Add lessons inline with {lesson: theme} … or {mistake: theme} … — or use the composer below.',
+    placeholder: 'A few sentences are enough. Add lessons inline with {lesson: theme} … or {mistake: theme} …, or use the composer below.',
   }, body0);
 
   // lesson composer: structured inputs that splice a well-formed marker into the story
@@ -11094,7 +11094,7 @@ export function openPersonEditor({ person }) {
   // hide relation until a parents union is chosen — otherwise it's "biological to nobody"
   const updateRelationVisibility = () => { relationRow.style.display = f.parents.value ? '' : 'none'; };
   f.parents.addEventListener('change', updateRelationVisibility);
-  f.spouse = el('select', {}, el('option', { value: '' }, '— none —'),
+  f.spouse = el('select', {}, el('option', { value: '' }, 'None'),
     ...store.allPeople().filter((p) => p.id !== data.id).sort((a, b) => displayName(a).localeCompare(displayName(b)))
       .map((p) => el('option', { value: p.id }, displayName(p))));
 
@@ -11113,7 +11113,7 @@ export function openPersonEditor({ person }) {
       try {
         const src = await importPhoto(file);
         data.photos.push({ src, caption: '', date: '' });
-        photoStatus.textContent = `Added ${data.photos.length} photo${data.photos.length === 1 ? '' : 's'} — shrunk to fit and tucked into the file.`;
+        photoStatus.textContent = `Added ${data.photos.length} photo${data.photos.length === 1 ? '' : 's'}, shrunk to fit and tucked into the file.`;
       } catch (err) {
         toast(err.message, { kind: 'error' });
         photoStatus.textContent = err.message;
@@ -11133,7 +11133,7 @@ export function openPersonEditor({ person }) {
     err.textContent = '';
     const display = f.display.value.trim();
     if (!display && !f.given.value.trim()) {
-      err.textContent = 'A name is required — at least a given name or a full name.';
+      err.textContent = 'A name is required: at least a given name or a full name.';
       f.display.focus();
       return;
     }
@@ -11179,13 +11179,13 @@ export function openPersonEditor({ person }) {
       row('Given', f.given),
       row('Family', f.family),
       row('Sex', f.sex),
-      row('Still living?', el('span', { class: 'inline-check' }, f.living, el('span', { class: 'inline-check-label' }, 'Yes — currently living')))),
+      row('Still living?', el('span', { class: 'inline-check' }, f.living, el('span', { class: 'inline-check-label' }, 'Yes, currently living')))),
   );
 
   const datesSection = el('div', { class: 'form-section' },
     el('div', { class: 'form-section-head' }, 'Dates & places'),
     el('div', { class: 'form-grid' },
-      row('Born', f.birth, 'Any precision works — a year alone is enough.'),
+      row('Born', f.birth, 'Any precision works. A year alone is enough.'),
       row('Birthplace', el('div', {}, f.birthPlace, birthGeo.wrap), 'Coordinates fill in offline.'),
       row('Died', f.death),
       row('Place of death', el('div', {}, f.deathPlace, deathGeo.wrap))),
@@ -11205,7 +11205,7 @@ export function openPersonEditor({ person }) {
   );
 
   const optionalSection = el('details', { class: 'collapse' },
-    el('summary', {}, 'Optional details — nicknames, traits, photos'),
+    el('summary', {}, 'Optional details: nicknames, traits, photos'),
     el('div', { class: 'collapse-body' },
       el('div', { class: 'form-grid' }, row('Former / maiden name', f.maiden), row('Also known as', f.aka)),
       el('div', { class: 'form-grid' }, row('Talents', f.talent, 'Comma-separated.'), row('Health notes', f.health, 'Comma-separated.')),
@@ -11307,7 +11307,7 @@ function makeGeo(placeInput, existing) {
     set('Looking up…');
     try {
       const hit = await lookupPlace(place);
-      if (hit) { coords.value = `${hit.lat}, ${hit.lng}`; set(`Found ${hit.label}${hit.country ? ', ' + hit.country : ''} — pinned offline.`, 'is-found'); }
+      if (hit) { coords.value = `${hit.lat}, ${hit.lng}`; set(`Found ${hit.label}${hit.country ? ', ' + hit.country : ''} (pinned offline).`, 'is-found'); }
       else set('Not in the gazetteer. Paste “lat, lng” from any map (right-click a spot → copy).', 'is-missing');
     } catch (e) { set('Lookup unavailable: ' + e.message, 'is-missing'); }
   }
@@ -11363,13 +11363,13 @@ export function renderGuide(view) {
     el('a', { class: 'guide-back', href: '#/' }, '← Back'),
     el('h1', { class: 'page-title' }, 'How The Tree works'),
     el('p', { class: 'guide-lead' },
-      'Your whole family archive is a single file — ', el('code', {}, 'family.html'), '. That one file is both the app and the data: open it and it shows itself. Here’s where it lives, how to back it up, and how to share it.'),
+      'Your whole family archive is a single file: ', el('code', {}, 'family.html'), '. That one file is both the app and the data: open it and it shows itself. Here’s where it lives, how to back it up, and how to share it.'),
 
     section('One file is the whole thing',
       el('p', {},
-        'Everyone you add — names, dates, places, stories, hard-won lessons, even the photos (shrunk to fit) — lives inside ', el('code', {}, 'family.html'), '. There’s no folder to manage, no database, nothing to install.'),
+        'Everyone you add, and everything about them (names, dates, places, stories, hard-won lessons, even the photos, shrunk to fit), lives inside ', el('code', {}, 'family.html'), '. There’s no folder to manage, no database, nothing to install.'),
       el('ul', {},
-        el('li', {}, el('strong', {}, 'To read it:'), ' double-click the file. It opens in any browser, on any device — your Mac, an iPhone, anything — and shows the tree, timeline, map, lessons, and book. No setup, no internet.'),
+        el('li', {}, el('strong', {}, 'To read it:'), ' double-click the file. It opens in any browser, on any device (your Mac, an iPhone, anything) and shows the tree, timeline, map, lessons, and book. No setup, no internet.'),
         el('li', {}, el('strong', {}, 'To edit it:'), ' open the file and use ', el('strong', {}, 'Add person'), ' or ', el('strong', {}, 'Edit'), '. On Chrome or Edge on a desktop, ', el('strong', {}, 'Save'), ' writes the changes straight back into the file. On other browsers, Save hands you an updated copy to keep.'))),
 
     section('Where to get the editor',
@@ -11380,19 +11380,19 @@ export function renderGuide(view) {
         el('li', {}, 'Go to ', el('a', { href: APP_URL, target: '_blank', rel: 'noopener' }, APP_URL), '.'),
         el('li', {}, 'Choose ', el('strong', {}, 'Open a family.html'), ' to edit yours, or ', el('strong', {}, 'Start a new archive'), '. Saving writes your one file in place.')),
       el('p', { class: 'guide-note' },
-        'The hosted page stores nothing itself — it’s just a convenient way to open and edit your file. Your archive only ever lives in your ', el('code', {}, 'family.html'), '.')),
+        'The hosted page stores nothing itself. It’s just a convenient way to open and edit your file. Your archive only ever lives in your ', el('code', {}, 'family.html'), '.')),
 
     section('Backing it up',
       el('ul', {},
-        el('li', {}, el('strong', {}, 'Keep the file in a synced cloud folder'), ' — iCloud Drive, Dropbox, or Google Drive. It’s backed up automatically and follows you to your other devices. Because it’s one file, this just works.'),
+        el('li', {}, el('strong', {}, 'Keep the file in a synced cloud folder'), ': iCloud Drive, Dropbox, or Google Drive. It’s backed up automatically and follows you to your other devices. Because it’s one file, this just works.'),
         el('li', {}, el('strong', {}, 'For real privacy, keep it in iCloud Drive with Advanced Data Protection turned on'), ' (System Settings → your name → iCloud). That makes iCloud end-to-end encrypted, so not even Apple can read your family’s stories.'),
         el('li', {}, el('strong', {}, 'Every so often, copy the file to a USB drive'), ' and store it safely. One file is easy to tuck away, and that offline copy outlives any account, company, or computer.'))),
 
     section('Sharing it with family',
       el('ul', {},
-        el('li', {}, el('strong', {}, 'Send the whole file'), ' — AirDrop, email, or message ', el('code', {}, 'family.html'), ' to someone and they just open it. They get the full, living archive, no app needed.'),
-        el('li', {}, el('strong', {}, 'A PDF book'), ' — for the “safe parts” to hand around freely: open ', el('strong', {}, 'Book'), ' and choose Save as PDF. Print it, AirDrop it, or email it.'),
-        el('li', {}, el('strong', {}, 'A GEDCOM or Markdown export'), ' — from the ', el('strong', {}, 'Book'), ' page, for relatives who use Ancestry or FamilySearch (GEDCOM) or who just want the plain text files (Markdown).'))),
+        el('li', {}, el('strong', {}, 'Send the whole file'), ': AirDrop, email, or message ', el('code', {}, 'family.html'), ' to someone and they just open it. They get the full, living archive, no app needed.'),
+        el('li', {}, el('strong', {}, 'A PDF book'), ', for the “safe parts” to hand around freely: open ', el('strong', {}, 'Book'), ' and choose Save as PDF. Print it, AirDrop it, or email it.'),
+        el('li', {}, el('strong', {}, 'A GEDCOM or Markdown export'), ', from the ', el('strong', {}, 'Book'), ' page, for relatives who use Ancestry or FamilySearch (GEDCOM) or who just want the plain text files (Markdown).'))),
 
     section('Nothing is locked in',
       el('p', {},
@@ -11400,11 +11400,11 @@ export function renderGuide(view) {
 
     section('Photos',
       el('p', {},
-        'Add JPEG, PNG, GIF, or WebP images and they’re shrunk to fit and tucked inside the file. iPhone photos are usually HEIC, which browsers can’t display — in Apple Photos, choose ', el('strong', {}, 'File → Export'), ' and export a JPEG copy first. Keep photos modest: this is a place for wisdom, not a scrapbook.')),
+        'Add JPEG, PNG, GIF, or WebP images and they’re shrunk to fit and tucked inside the file. iPhone photos are usually HEIC, which browsers can’t display. In Apple Photos, choose ', el('strong', {}, 'File → Export'), ' and export a JPEG copy first. Keep photos modest: this is a place for wisdom, not a scrapbook.')),
 
     section('If something looks off',
       el('ul', {},
-        el('li', {}, 'If a save ever can’t finish — say the browser lost access to the file — The Tree keeps your edit in the tab and offers to download a copy, so nothing is lost.'),
+        el('li', {}, 'If a save ever can’t finish (say the browser lost access to the file), The Tree keeps your edit in the tab and offers to download a copy, so nothing is lost.'),
         el('li', {}, 'Keep one good backup before any big change. Because the archive is a single file, a backup is just a copy of that file.'),
         el('li', {}, 'When in doubt, ', el('strong', {}, 'Save / download'), ' a fresh copy and tuck it somewhere safe.'))),
   );
@@ -11502,14 +11502,14 @@ function renderNav() {
   if (app.mode === 'archive') {
     const label = app.archiveName || 'family.html';
     right.append(
-      el('span', { class: 'archive-pill', title: app.file ? 'Saving in place to ' + label : 'Not saved to a file yet — Save downloads a copy' },
+      el('span', { class: 'archive-pill', title: app.file ? 'Saving in place to ' + label : 'Not saved to a file yet. Save downloads a copy' },
         el('span', { class: 'dot' + (app.dirty ? ' is-dirty' : '') }),
         label, app.dirty ? el('span', { class: 'pill-flag', title: 'Unsaved changes' }, ' •') : null));
     right.append(el('button', { class: 'btn btn-small' + (app.dirty ? ' btn-primary' : ''), onclick: () => requestSave() },
       app.file ? 'Save' : 'Save / download'));
   } else {
     right.append(el('span', { class: 'demo-pill', title: 'You are exploring sample data. Nothing you change is saved.' },
-      el('span', { class: 'dot' }), 'Demo', el('span', { class: 'pill-more' }, ' — not saved')));
+      el('span', { class: 'dot' }), 'Demo', el('span', { class: 'pill-more' }, ' · not saved')));
     right.append(el('button', { class: 'btn btn-small', onclick: () => backToLanding() }, 'Start your own'));
   }
   right.append(el('button', { class: 'btn btn-small btn-primary', onclick: () => addPerson() }, '+ Add person'));
@@ -11541,12 +11541,12 @@ function renderLanding(view) {
     el('div', { class: 'landing-mark', 'aria-hidden': 'true' }, treeGlyph(34)),
     el('h1', { class: 'landing-title' }, 'The Tree'),
     el('p', { class: 'landing-sub' },
-      'A quiet archive of who your family was — their stories, their hard-won lessons, and the mistakes worth not repeating.'),
+      'A quiet archive of who your family was: their stories, their hard-won lessons, and the mistakes worth not repeating.'),
     note,
     actions,
     el('hr', { class: 'landing-rule' }),
     el('p', { class: 'landing-fine' },
-      'Your whole family lives in one file you own — open it on any device, back it up anywhere, hand it to anyone. Nothing leaves your computer. ',
+      'Your whole family lives in one file you own. Open it on any device, back it up anywhere, hand it to anyone. Nothing leaves your computer. ',
       el('a', { href: '#/guide' }, 'How this works')),
   ));
 }
@@ -11557,13 +11557,13 @@ function renderEmptyArchive(view) {
     el('div', { class: 'landing-mark', 'aria-hidden': 'true' }, treeGlyph(34)),
     el('p', { class: 'results-caption' }, 'Your archive'),
     el('h1', { class: 'landing-title' }, app.archiveName || 'family.html'),
-    el('p', { class: 'landing-sub' }, 'An empty room. Start by adding one person — a name and a single story is enough. You can fill the rest in later.'),
+    el('p', { class: 'landing-sub' }, 'An empty room. Start by adding one person: a name and a single story is enough. You can fill the rest in later.'),
     el('div', { class: 'landing-actions' },
       el('button', { class: 'btn btn-primary btn-large', onclick: () => addPerson() }, '+ Add the first person')),
     el('hr', { class: 'landing-rule' }),
     el('p', { class: 'landing-fine' },
       'Everything you add lives inside one ', el('code', {}, 'family.html'), ' you keep. When you’re ready, ', el('strong', {}, 'Save'), ' writes it ',
-      canUseFilePickers() ? 'to disk' : 'as a download', ' — then back it up to iCloud, a USB drive, anywhere. ',
+      canUseFilePickers() ? 'to disk' : 'as a download', ', then back it up to iCloud, a USB drive, anywhere. ',
       el('a', { href: '#/guide' }, 'How this works')),
   ));
 }
@@ -11606,7 +11606,7 @@ async function openFile() {
     enterArchive(res.docs, { file: res.handle, name: res.name });
     toast(`Opened “${res.name}”.`, { kind: 'success' });
     if (!res.handle && !canUseFilePickers()) {
-      toast('This browser can read the file but can’t write back to it — Save will download an updated copy.', { duration: 7000 });
+      toast('This browser can read the file but can’t write back to it. Save will download an updated copy.', { duration: 7000 });
     }
   } catch (e) {
     console.error(e);
@@ -11649,19 +11649,19 @@ async function requestSave({ silent = false } = {}) {
     renderNav();
     if (!silent) {
       if (result.method === 'inplace') toast(`Saved to “${result.name}”.`, { kind: 'success' });
-      else toast('Saved — an updated family.html was downloaded. Keep this copy and back it up.', { kind: 'success', duration: 6000 });
+      else toast('Saved. An updated family.html was downloaded. Keep this copy and back it up.', { kind: 'success', duration: 6000 });
     }
   } catch (e) {
     if (e && e.name === 'AbortError') { // cancelled the save-location picker
       app.dirty = true; renderNav();
-      toast('Not saved yet — your changes are still here. Click Save when you’re ready to choose a location.', { duration: 6000 });
+      toast('Not saved yet. Your changes are still here. Click Save when you’re ready to choose a location.', { duration: 6000 });
       return;
     }
     console.error('The Tree: save failed', e);
     app.dirty = true; renderNav();
     const download = el('button', { type: 'button', class: 'btn btn-small',
       onclick: () => { downloadArchive(currentDocs()); } }, 'Download a copy');
-    toast(el('span', {}, 'Couldn’t write the file — your edit is safe in this tab. ', download),
+    toast(el('span', {}, 'Couldn’t write the file. Your edit is safe in this tab. ', download),
       { kind: 'error', sticky: true });
   }
 }
@@ -11720,7 +11720,7 @@ async function boot() {
     router();
     if (detail.persist) {
       if (app.mode === 'archive') { app.dirty = true; renderNav(); requestSave(); }
-      else if (app.mode === 'demo') toast('Demo mode — changes live only in this tab and aren’t saved.', { duration: 5000 });
+      else if (app.mode === 'demo') toast('Demo mode. Changes live only in this tab and aren’t saved.', { duration: 5000 });
     }
   });
 

@@ -40,7 +40,7 @@ export function openPersonEditor({ person }) {
   f.given = el('input', { type: 'text', value: names.given || '', autocomplete: 'off' });
   f.family = el('input', { type: 'text', value: names.family || '', autocomplete: 'off' });
   f.sex = el('select', {}, ...['', 'F', 'M', 'other'].map((v) =>
-    el('option', { value: v, selected: (data.sex || '') === v || undefined }, v ? ({F:'Female', M:'Male', other:'Other'})[v] : '—')));
+    el('option', { value: v, selected: (data.sex || '') === v || undefined }, v ? ({F:'Female', M:'Male', other:'Other'})[v] : 'Unspecified')));
 
   // --- Dates & places ---
   f.birth = el('input', { type: 'text', value: (data.birth && data.birth.date) || '', placeholder: 'e.g. 1938-04-12, 1938, or “abt 1850”' });
@@ -53,7 +53,7 @@ export function openPersonEditor({ person }) {
 
   // --- Story ---
   f.story = el('textarea', {
-    placeholder: 'A few sentences are enough. Add lessons inline with {lesson: theme} … or {mistake: theme} … — or use the composer below.',
+    placeholder: 'A few sentences are enough. Add lessons inline with {lesson: theme} … or {mistake: theme} …, or use the composer below.',
   }, body0);
 
   // lesson composer: structured inputs that splice a well-formed marker into the story
@@ -88,7 +88,7 @@ export function openPersonEditor({ person }) {
   // hide relation until a parents union is chosen — otherwise it's "biological to nobody"
   const updateRelationVisibility = () => { relationRow.style.display = f.parents.value ? '' : 'none'; };
   f.parents.addEventListener('change', updateRelationVisibility);
-  f.spouse = el('select', {}, el('option', { value: '' }, '— none —'),
+  f.spouse = el('select', {}, el('option', { value: '' }, 'None'),
     ...store.allPeople().filter((p) => p.id !== data.id).sort((a, b) => displayName(a).localeCompare(displayName(b)))
       .map((p) => el('option', { value: p.id }, displayName(p))));
 
@@ -107,7 +107,7 @@ export function openPersonEditor({ person }) {
       try {
         const src = await importPhoto(file);
         data.photos.push({ src, caption: '', date: '' });
-        photoStatus.textContent = `Added ${data.photos.length} photo${data.photos.length === 1 ? '' : 's'} — shrunk to fit and tucked into the file.`;
+        photoStatus.textContent = `Added ${data.photos.length} photo${data.photos.length === 1 ? '' : 's'}, shrunk to fit and tucked into the file.`;
       } catch (err) {
         toast(err.message, { kind: 'error' });
         photoStatus.textContent = err.message;
@@ -127,7 +127,7 @@ export function openPersonEditor({ person }) {
     err.textContent = '';
     const display = f.display.value.trim();
     if (!display && !f.given.value.trim()) {
-      err.textContent = 'A name is required — at least a given name or a full name.';
+      err.textContent = 'A name is required: at least a given name or a full name.';
       f.display.focus();
       return;
     }
@@ -173,13 +173,13 @@ export function openPersonEditor({ person }) {
       row('Given', f.given),
       row('Family', f.family),
       row('Sex', f.sex),
-      row('Still living?', el('span', { class: 'inline-check' }, f.living, el('span', { class: 'inline-check-label' }, 'Yes — currently living')))),
+      row('Still living?', el('span', { class: 'inline-check' }, f.living, el('span', { class: 'inline-check-label' }, 'Yes, currently living')))),
   );
 
   const datesSection = el('div', { class: 'form-section' },
     el('div', { class: 'form-section-head' }, 'Dates & places'),
     el('div', { class: 'form-grid' },
-      row('Born', f.birth, 'Any precision works — a year alone is enough.'),
+      row('Born', f.birth, 'Any precision works. A year alone is enough.'),
       row('Birthplace', el('div', {}, f.birthPlace, birthGeo.wrap), 'Coordinates fill in offline.'),
       row('Died', f.death),
       row('Place of death', el('div', {}, f.deathPlace, deathGeo.wrap))),
@@ -199,7 +199,7 @@ export function openPersonEditor({ person }) {
   );
 
   const optionalSection = el('details', { class: 'collapse' },
-    el('summary', {}, 'Optional details — nicknames, traits, photos'),
+    el('summary', {}, 'Optional details: nicknames, traits, photos'),
     el('div', { class: 'collapse-body' },
       el('div', { class: 'form-grid' }, row('Former / maiden name', f.maiden), row('Also known as', f.aka)),
       el('div', { class: 'form-grid' }, row('Talents', f.talent, 'Comma-separated.'), row('Health notes', f.health, 'Comma-separated.')),
@@ -301,7 +301,7 @@ function makeGeo(placeInput, existing) {
     set('Looking up…');
     try {
       const hit = await lookupPlace(place);
-      if (hit) { coords.value = `${hit.lat}, ${hit.lng}`; set(`Found ${hit.label}${hit.country ? ', ' + hit.country : ''} — pinned offline.`, 'is-found'); }
+      if (hit) { coords.value = `${hit.lat}, ${hit.lng}`; set(`Found ${hit.label}${hit.country ? ', ' + hit.country : ''} (pinned offline).`, 'is-found'); }
       else set('Not in the gazetteer. Paste “lat, lng” from any map (right-click a spot → copy).', 'is-missing');
     } catch (e) { set('Lookup unavailable: ' + e.message, 'is-missing'); }
   }

@@ -12,10 +12,10 @@ export function renderLessons(view) {
   const wrap = el('section', { class: 'lessons' },
     el('h1', { class: 'page-title' }, 'Family Lessons'),
     el('p', { class: 'lessons-intro' },
-      'Hard-won wisdom and cautionary tales, gathered from across the family and grouped by theme — written on each person, collected here.'),
+      'Hard-won wisdom and cautionary tales, gathered from across the family and grouped by theme. Written on each person, collected here.'),
     el('div', { class: 'legend-inline' },
       el('span', { class: 'legend-item' }, el('span', { class: 'legend-dot' }), 'Lesson'),
-      el('span', { class: 'legend-item' }, el('span', { class: 'legend-dot is-mistake' }), 'Mistake — shown first, the via-negativa lens'),
+      el('span', { class: 'legend-item' }, el('span', { class: 'legend-dot is-mistake' }), 'Mistake, shown first: the via-negativa lens'),
     ));
 
   if (!themes.length) {

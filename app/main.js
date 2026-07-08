@@ -86,14 +86,14 @@ function renderNav() {
   if (app.mode === 'archive') {
     const label = app.archiveName || 'family.html';
     right.append(
-      el('span', { class: 'archive-pill', title: app.file ? 'Saving in place to ' + label : 'Not saved to a file yet — Save downloads a copy' },
+      el('span', { class: 'archive-pill', title: app.file ? 'Saving in place to ' + label : 'Not saved to a file yet. Save downloads a copy' },
         el('span', { class: 'dot' + (app.dirty ? ' is-dirty' : '') }),
         label, app.dirty ? el('span', { class: 'pill-flag', title: 'Unsaved changes' }, ' •') : null));
     right.append(el('button', { class: 'btn btn-small' + (app.dirty ? ' btn-primary' : ''), onclick: () => requestSave() },
       app.file ? 'Save' : 'Save / download'));
   } else {
     right.append(el('span', { class: 'demo-pill', title: 'You are exploring sample data. Nothing you change is saved.' },
-      el('span', { class: 'dot' }), 'Demo', el('span', { class: 'pill-more' }, ' — not saved')));
+      el('span', { class: 'dot' }), 'Demo', el('span', { class: 'pill-more' }, ' · not saved')));
     right.append(el('button', { class: 'btn btn-small', onclick: () => backToLanding() }, 'Start your own'));
   }
   right.append(el('button', { class: 'btn btn-small btn-primary', onclick: () => addPerson() }, '+ Add person'));
@@ -125,12 +125,12 @@ function renderLanding(view) {
     el('div', { class: 'landing-mark', 'aria-hidden': 'true' }, treeGlyph(34)),
     el('h1', { class: 'landing-title' }, 'The Tree'),
     el('p', { class: 'landing-sub' },
-      'A quiet archive of who your family was — their stories, their hard-won lessons, and the mistakes worth not repeating.'),
+      'A quiet archive of who your family was: their stories, their hard-won lessons, and the mistakes worth not repeating.'),
     note,
     actions,
     el('hr', { class: 'landing-rule' }),
     el('p', { class: 'landing-fine' },
-      'Your whole family lives in one file you own — open it on any device, back it up anywhere, hand it to anyone. Nothing leaves your computer. ',
+      'Your whole family lives in one file you own. Open it on any device, back it up anywhere, hand it to anyone. Nothing leaves your computer. ',
       el('a', { href: '#/guide' }, 'How this works')),
   ));
 }
@@ -141,13 +141,13 @@ function renderEmptyArchive(view) {
     el('div', { class: 'landing-mark', 'aria-hidden': 'true' }, treeGlyph(34)),
     el('p', { class: 'results-caption' }, 'Your archive'),
     el('h1', { class: 'landing-title' }, app.archiveName || 'family.html'),
-    el('p', { class: 'landing-sub' }, 'An empty room. Start by adding one person — a name and a single story is enough. You can fill the rest in later.'),
+    el('p', { class: 'landing-sub' }, 'An empty room. Start by adding one person: a name and a single story is enough. You can fill the rest in later.'),
     el('div', { class: 'landing-actions' },
       el('button', { class: 'btn btn-primary btn-large', onclick: () => addPerson() }, '+ Add the first person')),
     el('hr', { class: 'landing-rule' }),
     el('p', { class: 'landing-fine' },
       'Everything you add lives inside one ', el('code', {}, 'family.html'), ' you keep. When you’re ready, ', el('strong', {}, 'Save'), ' writes it ',
-      canUseFilePickers() ? 'to disk' : 'as a download', ' — then back it up to iCloud, a USB drive, anywhere. ',
+      canUseFilePickers() ? 'to disk' : 'as a download', ', then back it up to iCloud, a USB drive, anywhere. ',
       el('a', { href: '#/guide' }, 'How this works')),
   ));
 }
@@ -190,7 +190,7 @@ async function openFile() {
     enterArchive(res.docs, { file: res.handle, name: res.name });
     toast(`Opened “${res.name}”.`, { kind: 'success' });
     if (!res.handle && !canUseFilePickers()) {
-      toast('This browser can read the file but can’t write back to it — Save will download an updated copy.', { duration: 7000 });
+      toast('This browser can read the file but can’t write back to it. Save will download an updated copy.', { duration: 7000 });
     }
   } catch (e) {
     console.error(e);
@@ -233,19 +233,19 @@ async function requestSave({ silent = false } = {}) {
     renderNav();
     if (!silent) {
       if (result.method === 'inplace') toast(`Saved to “${result.name}”.`, { kind: 'success' });
-      else toast('Saved — an updated family.html was downloaded. Keep this copy and back it up.', { kind: 'success', duration: 6000 });
+      else toast('Saved. An updated family.html was downloaded. Keep this copy and back it up.', { kind: 'success', duration: 6000 });
     }
   } catch (e) {
     if (e && e.name === 'AbortError') { // cancelled the save-location picker
       app.dirty = true; renderNav();
-      toast('Not saved yet — your changes are still here. Click Save when you’re ready to choose a location.', { duration: 6000 });
+      toast('Not saved yet. Your changes are still here. Click Save when you’re ready to choose a location.', { duration: 6000 });
       return;
     }
     console.error('The Tree: save failed', e);
     app.dirty = true; renderNav();
     const download = el('button', { type: 'button', class: 'btn btn-small',
       onclick: () => { downloadArchive(currentDocs()); } }, 'Download a copy');
-    toast(el('span', {}, 'Couldn’t write the file — your edit is safe in this tab. ', download),
+    toast(el('span', {}, 'Couldn’t write the file. Your edit is safe in this tab. ', download),
       { kind: 'error', sticky: true });
   }
 }
@@ -304,7 +304,7 @@ async function boot() {
     router();
     if (detail.persist) {
       if (app.mode === 'archive') { app.dirty = true; renderNav(); requestSave(); }
-      else if (app.mode === 'demo') toast('Demo mode — changes live only in this tab and aren’t saved.', { duration: 5000 });
+      else if (app.mode === 'demo') toast('Demo mode. Changes live only in this tab and aren’t saved.', { duration: 5000 });
     }
   });
 

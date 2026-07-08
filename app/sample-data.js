@@ -25,8 +25,8 @@ parents_union: null
 ---
 ## Story
 The village schoolmaster of a small Toishan hamlet. Never travelled further
-than Guangzhou; insisted that every child in the family — sons and daughters
-both — learn to read and write.
+than Guangzhou; insisted that every child in the family, sons and daughters
+both, learn to read and write.
 
 ## Lessons & Mistakes
 - {lesson: work} "Teach a daughter to read and you teach two generations." He charged half-fees for girls when the village called the practice wasteful.`,
@@ -117,7 +117,7 @@ occupation, and three children's school fees.
 
 ## Lessons & Mistakes
 - {lesson: work} "An hour at the bench is an hour saved later." Refused to take shortcuts at the forge even on the simplest piece. His work passed inspection in three colonies.
-- {lesson: money} Carried no debt his whole working life. "Owe no one — you can refuse any job and still sleep."`,
+- {lesson: money} Carried no debt his whole working life. "Owe no one, and you can refuse any job and still sleep."`,
 
   `---
 id: p-yukfan
@@ -140,7 +140,7 @@ first time on her wedding day. Ran the shop ledger and translated for every
 European customer who walked in.
 
 ## Lessons & Mistakes
-- {lesson: work} "A woman with three languages is never alone." She handled the British colonial accounts, the Hokkien suppliers, and her in-laws' village letters — all from the same desk.`,
+- {lesson: work} "A woman with three languages is never alone." She handled the British colonial accounts, the Hokkien suppliers, and her in-laws' village letters, all from the same desk.`,
 
   // ---- Generation 3: the war and the second migration ----
   `---
@@ -165,8 +165,8 @@ Emigrated to Vancouver in 1950 with a new wife and an infant daughter; built
 a family practice in Chinatown that ran until the year he died.
 
 ## Lessons & Mistakes
-- {lesson: work} Refused to specialise. "A neighbourhood doctor sees what hospitals never do — and they remember you for it for forty years."
-- {mistake: health} Drank for a decade after the war to sleep through what he had seen on the hospital ships. Lost his savings, alienated his children, almost lost the practice. Stopped on his fiftieth birthday and never touched it again — but said the years he lost never came back.`,
+- {lesson: work} Refused to specialise. "A neighbourhood doctor sees what hospitals never do, and they remember you for it for forty years."
+- {mistake: health} Drank for a decade after the war to sleep through what he had seen on the hospital ships. Lost his savings, alienated his children, almost lost the practice. Stopped on his fiftieth birthday and never touched it again, but said the years he lost never came back.`,
 
   `---
 id: p-sauyi
@@ -230,7 +230,7 @@ Born eight months before her mother died. Carried across the Pacific by
 Mei-ling at three, raised in Vancouver believing for years that Mei-ling
 was her birth mother. Read law at the LSE on a Commonwealth scholarship,
 called to the Bar in 1972, never left London. Spent a forty-year career on
-immigration appeals — much of it for families with stories that began the
+immigration appeals, much of it for families with stories that began the
 way hers did.
 
 ## Lessons & Mistakes
@@ -251,7 +251,7 @@ parents_union: "u-hongkeung-meiling"
 ## Story
 First child born after the move to Canada. Mechanical engineer; spent
 thirty-two years designing pulp-mill machinery up and down the Fraser
-Valley. Quiet, steady, and — by his own admission — never as comfortable in
+Valley. Quiet, steady, and, by his own admission, never as comfortable in
 Cantonese as he wished he had been.
 
 ## Lessons & Mistakes
@@ -315,7 +315,7 @@ parents_union: null
 Trained as a nurse in Dublin, emigrated to Vancouver in 1978 on a
 two-year contract that turned into a life. Met David at a Lions Gate
 Hospital fundraiser; married 1983. Held the Wong-O'Sullivan Christmas
-table together — turkey on one end, har gow on the other — for four
+table together (turkey on one end, har gow on the other) for four
 decades.`,
 
   // ---- Generation 5 ----
@@ -409,7 +409,7 @@ children:
 ## Notes
 Met in Hong Kong in 1948; married within the year. Mei-ling raised Karen as
 her own from age three, adopted Susan as a newborn in 1957, and took in
-Daniel — Hong-keung's son from before the marriage — when he reached Canada
+Daniel, Hong-keung's son from before the marriage, when he reached Canada
 in 1983.`,
 
   `---

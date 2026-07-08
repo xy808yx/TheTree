@@ -43,7 +43,7 @@ export function loadEmbedded() {
 function extractDocsFromHTML(text) {
   const doc = new DOMParser().parseFromString(String(text || ''), 'text/html');
   const el = doc.getElementById(DATA_ID);
-  if (!el) throw new Error('That file isn’t a family.html archive — no embedded family data was found in it.');
+  if (!el) throw new Error('That file isn’t a family.html archive. No embedded family data was found in it.');
   return parseDocsJSON(el.textContent);
 }
 

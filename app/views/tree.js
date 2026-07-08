@@ -145,7 +145,7 @@ export function renderTree(view, focusId) {
     el('button', { class: 'btn btn-small', title: 'Zoom in', 'aria-label': 'Zoom in', onclick: () => setScale(scale + 0.15) }, '+'));
 
   const toolbar = el('div', { class: 'tree-toolbar' },
-    el('span', { class: 'tree-crumb' }, 'Centered on ', el('strong', {}, displayName(focus)), ' — click any card to re-center'),
+    el('span', { class: 'tree-crumb' }, 'Centered on ', el('strong', {}, displayName(focus)), '. Click any card to re-center.'),
     el('a', { class: 'btn btn-small', href: `#/person/${focus.id}` }, 'Open profile'),
     el('span', { class: 'toolbar-spacer' }),
     zoomGroup);
@@ -173,7 +173,7 @@ function card(n, focusId) {
   const c = el('div', {
     class: 'node-card' + sexClass + (isFocus ? ' is-focus' : ''),
     style: { left: n.px + 'px', top: n.py + 'px' },
-    title: isFocus ? 'This is the focus — click to open profile' : `Click to center on ${displayName(p)}`,
+    title: isFocus ? 'This is the focus. Click to open profile.' : `Click to center on ${displayName(p)}`,
     onclick: () => { if (isFocus) go(`#/person/${p.id}`); else go(`#/tree/${p.id}`); },
   },
     el('div', { class: 'node-name' }, displayName(p)),
