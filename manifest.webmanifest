@@ -1,7 +1,7 @@
 {
-  "name": "The Tree — Family Archive",
+  "name": "The Tree: Family Archive",
   "short_name": "The Tree",
-  "description": "A private family history archive — stories, lessons, and the people behind them.",
+  "description": "A private family history archive: stories, lessons, and the people behind them.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

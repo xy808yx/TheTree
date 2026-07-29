@@ -12,7 +12,9 @@ import { app } from '../context.js';
 import { lookupPlace, parseLatLng } from '../geo.js';
 
 const STORY_PROMPTS = [
+  'Where did they grow up?',
   'What were they known for?',
+  'How did they meet their partner?',
   'A decision they made that you admire',
   'What did money teach them?',
   'A talent, skill, or trade',
@@ -55,6 +57,9 @@ export function openPersonEditor({ person }) {
   f.story = el('textarea', {
     placeholder: 'A few sentences are enough. Add lessons inline with {lesson: theme} … or {mistake: theme} …, or use the composer below.',
   }, body0);
+  // Until the textarea is focused once, selectionStart is 0 — a chip click would
+  // splice its prompt above an existing story. Append at the end until then.
+  f.story.addEventListener('focus', () => { f.story.dataset.touched = '1'; }, { once: true });
 
   // lesson composer: structured inputs that splice a well-formed marker into the story
   const knownThemes = collectThemes();
@@ -69,6 +74,12 @@ export function openPersonEditor({ person }) {
     const theme = (composerTheme.value === '__custom' ? composerCustom.value : composerTheme.value).trim().toLowerCase();
     if (!theme) { toast('Pick a theme first.', { kind: 'error' }); return; }
     const safe = theme.replace(/[^a-z0-9-]/g, '');
+    // The scanner only collects themes that start with a letter — never insert a
+    // marker it would silently ignore.
+    if (!/^[a-z][a-z0-9-]*$/.test(safe)) {
+      toast('Themes must start with a letter and use only letters, numbers, and hyphens.', { kind: 'error' });
+      return;
+    }
     insert(f.story, `\n\n- {${composerKind.value}: ${safe}} `);
   } }, 'Add to story');
   const composer = el('div', { class: 'lesson-composer' },
@@ -89,8 +100,10 @@ export function openPersonEditor({ person }) {
   const updateRelationVisibility = () => { relationRow.style.display = f.parents.value ? '' : 'none'; };
   f.parents.addEventListener('change', updateRelationVisibility);
   f.spouse = el('select', {}, el('option', { value: '' }, 'None'),
+    el('option', { value: '__solo' }, 'No partner recorded (single parent)'),
     ...store.allPeople().filter((p) => p.id !== data.id).sort((a, b) => displayName(a).localeCompare(displayName(b)))
       .map((p) => el('option', { value: p.id }, displayName(p))));
+  const partners0 = person ? store.partnersOf(person) : [];
 
   // --- Optional details (collapsed) ---
   f.maiden = el('input', { type: 'text', value: names.maiden || '', autocomplete: 'off' });
@@ -107,7 +120,7 @@ export function openPersonEditor({ person }) {
       try {
         const src = await importPhoto(file);
         data.photos.push({ src, caption: '', date: '' });
-        photoStatus.textContent = `Added ${data.photos.length} photo${data.photos.length === 1 ? '' : 's'}, shrunk to fit and tucked into the file.`;
+        photoStatus.textContent = `${data.photos.length} photo${data.photos.length === 1 ? '' : 's'} attached, shrunk to fit and tucked into the file.`;
       } catch (err) {
         toast(err.message, { kind: 'error' });
         photoStatus.textContent = err.message;
@@ -116,6 +129,17 @@ export function openPersonEditor({ person }) {
   }
 
   const err = el('div', { class: 'hint', style: { color: 'var(--oxblood)', marginTop: 'var(--s-3)' } });
+
+  // Snapshot the form so a destructive close can tell typed work from an untouched
+  // modal — mid-interview, an accidental Escape must never eat a dictated story.
+  const snapshot = () => JSON.stringify([
+    f.display.value, f.given.value, f.family.value, f.sex.value, f.living.checked,
+    f.birth.value, f.birthPlace.value, birthGeo.coords.value,
+    f.death.value, f.deathPlace.value, deathGeo.coords.value,
+    f.story.value, f.parents.value, f.relation.value, f.spouse.value,
+    f.maiden.value, f.aka.value, f.talent.value, f.health.value, data.photos.length,
+  ]);
+  const clean0 = snapshot();
 
   // Apply the form to the in-memory store, then hand off to main.js to persist the
   // whole archive (write family.html in place, or download a fresh copy). The store
@@ -149,20 +173,29 @@ export function openPersonEditor({ person }) {
     try {
       persistPerson(data, body);
       applyParents(data, f.parents.value || null, f.relation.value);
-      if (f.spouse.value) applySpouse(data, f.spouse.value);
+      if (f.spouse.value === '__solo') applySolo(data);
+      else if (f.spouse.value) applySpouse(data, f.spouse.value);
     } catch (e) {
       console.error('The Tree: edit failed', e); // never swallow the only diagnostic
       err.textContent = 'Couldn’t apply that edit: ' + ((e && e.message) || String(e));
       return;
     }
-    close();
+    close(true);
     // main.js re-renders and persists the archive (and reports saved / downloaded / not-yet-saved).
     window.dispatchEvent(new CustomEvent('data:changed', { detail: { focus: data.id, persist: true } }));
     toast(isNew ? `Added ${names.display}.` : `Saved ${names.display}.`, { kind: 'success' });
   }
 
-  const backdrop = el('div', { class: 'modal-backdrop', onclick: (e) => { if (e.target === backdrop) close(); } });
-  function close() { backdrop.remove(); document.removeEventListener('keydown', onKey); }
+  // A click that lands on the backdrop only counts as a dismissal if the press
+  // STARTED there too — dragging a text selection out of the story textarea fires
+  // a click on the backdrop, and that gesture must never close the modal.
+  let downOnBackdrop = false;
+  const backdrop = el('div', { class: 'modal-backdrop', onclick: (e) => { if (e.target === backdrop && downOnBackdrop) close(); } });
+  backdrop.addEventListener('mousedown', (e) => { downOnBackdrop = e.target === backdrop; });
+  function close(force) {
+    if (!force && snapshot() !== clean0 && !window.confirm('Discard your unsaved changes to this person?')) return;
+    backdrop.remove(); document.removeEventListener('keydown', onKey);
+  }
   function onKey(e) { if (e.key === 'Escape') close(); }
   document.addEventListener('keydown', onKey);
 
@@ -180,7 +213,7 @@ export function openPersonEditor({ person }) {
     el('div', { class: 'form-section-head' }, 'Dates & places'),
     el('div', { class: 'form-grid' },
       row('Born', f.birth, 'Any precision works. A year alone is enough.'),
-      row('Birthplace', el('div', {}, f.birthPlace, birthGeo.wrap), 'Coordinates fill in offline.'),
+      row('Birthplace', el('div', {}, f.birthPlace, birthGeo.wrap), 'Coordinates fill in on their own. No internet needed.'),
       row('Died', f.death),
       row('Place of death', el('div', {}, f.deathPlace, deathGeo.wrap))),
   );
@@ -188,14 +221,17 @@ export function openPersonEditor({ person }) {
   const storySection = el('div', { class: 'form-section' },
     el('div', { class: 'form-section-head' }, 'Story'),
     row('Their story', el('div', {}, f.story, composer, promptBar),
-      el('span', {}, 'Markers like ', el('code', {}, '{lesson: money}'), ' or ', el('code', {}, '{mistake: health}'), ' collect into the Lessons view.')),
+      el('span', {}, 'Markers like ', el('code', {}, '{lesson: money}'), ' or ', el('code', {}, '{mistake: health}'), ' collect into the Lessons view. For what to ask them in the first place, the Guide has a question list under “Interviewing family”.')),
   );
 
   const familySection = el('div', { class: 'form-section' },
     el('div', { class: 'form-section-head' }, 'Family'),
-    row('Parents', f.parents, 'Pick the union the person belongs to. New unions can be added by editing one of the parents.'),
+    row('Parents', f.parents, 'Pick the couple this person is a child of. To make a new couple, edit one parent and add the other under "Add a spouse / partner".'),
     relationRow,
-    row('Add a spouse / partner', f.spouse, 'Creates a marriage link to the chosen person.'),
+    partners0.length ? row('Spouse / partner', el('div', { class: 'hint' }, partners0.map((x) => displayName(x.person)).join(', '))) : null,
+    row('Add a spouse / partner', f.spouse, partners0.length
+      ? 'Adds another marriage link. Existing links are listed above.'
+      : 'Creates a marriage link to the chosen person. Choose "No partner recorded" to make them a single parent.'),
   );
 
   const optionalSection = el('details', { class: 'collapse' },
@@ -218,7 +254,7 @@ export function openPersonEditor({ person }) {
     optionalSection,
     err,
     el('div', { class: 'form-actions' },
-      el('button', { class: 'btn btn-ghost', onclick: close }, 'Cancel'),
+      el('button', { class: 'btn btn-ghost', onclick: () => close() }, 'Cancel'),
       el('button', { class: 'btn btn-primary', onclick: save }, isNew ? 'Add person' : 'Save')),
   ));
   document.body.append(backdrop);
@@ -254,6 +290,20 @@ function applyParents(data, newPU, relation) {
   persistPerson(data, store.getPerson(data.id) ? store.getPerson(data.id).body : '');
 }
 
+// A one-partner union: lets a child be linked to the single parent we know about
+// ("I only ever knew grandma") without inventing a phantom second person.
+function applySolo(data) {
+  const exists = store.allUnions().find((u) => (u.data.partners || []).length === 1 && u.data.partners[0] === data.id);
+  if (exists) return;
+  const u = { data: { id: uid('u'), type: 'partnership', partners: [data.id], children: [] }, body: '' };
+  persistUnion(u);
+  const p = store.getPerson(data.id);
+  if (p) {
+    p.data.unions = [...new Set([...(p.data.unions || []), u.data.id])];
+    persistPerson(p.data, p.body);
+  }
+}
+
 function applySpouse(data, spouseId) {
   const exists = store.allUnions().find((u) => (u.data.partners || []).includes(data.id) && (u.data.partners || []).includes(spouseId));
   if (exists) return;
@@ -269,7 +319,9 @@ function applySpouse(data, spouseId) {
 
 // ---- small utilities ----
 function insert(textarea, snippet) {
-  const s = textarea.selectionStart ?? textarea.value.length;
+  // Until the textarea has been focused once, selectionStart is a meaningless 0 —
+  // append to the end instead of splicing above an existing story.
+  const s = textarea.dataset.touched ? (textarea.selectionStart ?? textarea.value.length) : textarea.value.length;
   textarea.value = textarea.value.slice(0, s) + snippet + textarea.value.slice(s);
   textarea.focus();
   const pos = s + snippet.length;
@@ -303,7 +355,10 @@ function makeGeo(placeInput, existing) {
       const hit = await lookupPlace(place);
       if (hit) { coords.value = `${hit.lat}, ${hit.lng}`; set(`Found ${hit.label}${hit.country ? ', ' + hit.country : ''} (pinned offline).`, 'is-found'); }
       else set('Not in the gazetteer. Paste “lat, lng” from any map (right-click a spot → copy).', 'is-missing');
-    } catch (e) { set('Lookup unavailable: ' + e.message, 'is-missing'); }
+    } catch (e) {
+      console.warn(e);
+      set('Offline lookup isn’t available for this copy. Paste “lat, lng” from any map (right-click a spot → copy).', 'is-missing');
+    }
   }
   placeInput.addEventListener('blur', () => locate(false));
   coords.addEventListener('input', () => set(''));

@@ -136,6 +136,29 @@ class Store {
       .filter((x) => x.person);
   }
 
+  // Siblings across BOTH parents' unions (excludes self): [{ person, label }].
+  // label: null for full biological, the child's own relation (adopted/step) in
+  // the same union, 'half' for a different union's biological child, and that
+  // child's own relation otherwise — so a step-child of a remarriage is never
+  // mislabeled 'half'. The tree, profile, and book all share this traversal.
+  allSiblingsOf(p) {
+    const pu = this.parentsUnionOf(p);
+    if (!pu) return [];
+    const parents = (pu.data.partners || []).map((id) => this.getPerson(id)).filter(Boolean);
+    const out = new Map();
+    for (const parent of parents) {
+      for (const c of this.childrenOf(parent)) {
+        if (c.person.id === p.id || out.has(c.person.id)) continue;
+        const samePU = c.person.data.parents_union === p.data.parents_union;
+        const label = samePU
+          ? (c.relation !== 'biological' ? c.relation : null)
+          : (c.relation === 'biological' ? 'half' : c.relation);
+        out.set(c.person.id, { person: c.person, label });
+      }
+    }
+    return [...out.values()];
+  }
+
   // All {lesson}/{mistake} markers across everyone, grouped by theme.
   // -> { theme: [{ person, kind, text }] }
   lessonsByTheme() {
@@ -166,12 +189,17 @@ class Store {
       a.category.localeCompare(b.category) || a.value.localeCompare(b.value));
   }
 
-  // Free-text search over names for the jump-to-person box.
+  // Free-text search over every recorded name — display, maiden, and
+  // also-known-as (nicknames, Chinese names) — for the jump-to-person box.
   search(q) {
     const needle = String(q || '').toLowerCase().trim();
     if (!needle) return [];
     return this.allPeople()
-      .filter((p) => displayName(p).toLowerCase().includes(needle))
+      .filter((p) => {
+        const n = p.data.names || {};
+        const hay = [displayName(p), n.maiden, ...(n.also_known_as || [])].filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(needle);
+      })
       .sort((a, b) => displayName(a).localeCompare(displayName(b)))
       .slice(0, 20);
   }

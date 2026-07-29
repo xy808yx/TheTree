@@ -54,7 +54,7 @@ export function renderTree(view, focusId) {
 
   // ---- siblings (left) incl. half/step/adopted ----
   let leftCol = -1;
-  for (const sib of allSiblings(focus)) {
+  for (const sib of store.allSiblingsOf(focus)) {
     if (byId.has(sib.person.id)) continue;
     add(sib.person, 0, leftCol, 'sibling', sib.label);
     leftCol -= 1;
@@ -194,22 +194,8 @@ function spouseEdge(a, b) {
   return { d: `M ${left.px + NODE_W} ${left.py + NODE_H / 2} L ${right.px} ${right.py + NODE_H / 2}`, cls: 'is-spouse' };
 }
 
-// Siblings across BOTH parents' unions; labels full(null)/adopted/step/half.
-function allSiblings(focus) {
-  const pu = store.parentsUnionOf(focus);
-  if (!pu) return [];
-  const parents = (pu.data.partners || []).map((id) => store.getPerson(id)).filter(Boolean);
-  const out = new Map();
-  for (const parent of parents) {
-    for (const c of store.childrenOf(parent)) {
-      if (c.person.id === focus.id || out.has(c.person.id)) continue;
-      const samePU = c.person.data.parents_union === focus.data.parents_union;
-      const label = samePU ? (c.relation !== 'biological' ? c.relation : null) : 'half';
-      out.set(c.person.id, { person: c.person, label });
-    }
-  }
-  return [...out.values()];
-}
+// Sibling traversal (incl. half/step/adopted labels) lives on the store as
+// allSiblingsOf, shared with the profile and the book so all three views agree.
 
 function ancRelation(person, focus) {
   // label a parent of the focus if the focus joined that union non-biologically

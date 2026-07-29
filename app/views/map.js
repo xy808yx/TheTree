@@ -80,7 +80,10 @@ export function renderMap(view) {
   if (!places.length) {
     wrap.append(el('p', { class: 'empty-note' },
       'No places located yet. Add a birthplace or place of death to someone, and the editor will look up its coordinates offline and pin it here.'));
-    if (unlocated.length) wrap.append(el('p', { class: 'page-intro', style: { marginTop: '.5rem' } }, `${unlocated.length} ${unlocated.length === 1 ? 'person has' : 'people have'} a place recorded but no coordinates yet.`));
+    // Only count people who actually have place text — name-only people don't
+    // "have a place recorded", and saying so would contradict the line above.
+    const withPlace = unlocated.filter((p) => (p.data.birth && p.data.birth.place) || (p.data.death && p.data.death.place));
+    if (withPlace.length) wrap.append(el('p', { class: 'page-intro', style: { marginTop: '.5rem' } }, `${withPlace.length} ${withPlace.length === 1 ? 'person has' : 'people have'} a place recorded but no coordinates yet.`));
     view.append(wrap);
     return;
   }
@@ -115,14 +118,20 @@ export function renderMap(view) {
 
   const dots = s('g', { class: 'map-dots' });
   for (const pl of places) {
-    const n = pl.born.length + pl.died.length;
+    // Unique people — someone born and buried in the same village is one person,
+    // not two, in the tooltip and the dot size.
+    const n = new Set([...pl.born, ...pl.died].map((x) => x.id)).size;
     const r = 4 + Math.min(9, Math.sqrt(n) * 2.2);
     const cx = projX(pl.lng), cy = projY(pl.lat);
-    const dot = s('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: r.toFixed(1), class: 'map-dot', tabindex: '0', role: 'button' },
+    // The visible dot renders 2-7px on a phone; interaction lives on a group with
+    // an invisible, much larger hit circle so places are actually tappable.
+    const g = s('g', { class: 'map-dot-g', tabindex: '0', role: 'button' },
+      s('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: (r + 18).toFixed(1), fill: 'transparent' }),
+      s('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: r.toFixed(1), class: 'map-dot' }),
       s('title', {}, `${pl.name || 'Place'} · ${n} ${n === 1 ? 'person' : 'people'}`));
-    dot.addEventListener('click', () => { showPlace(pl); highlight(cx, cy); });
-    dot.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showPlace(pl); highlight(cx, cy); } });
-    dots.append(dot);
+    g.addEventListener('click', () => { showPlace(pl); highlight(cx, cy); });
+    g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showPlace(pl); highlight(cx, cy); } });
+    dots.append(g);
   }
   const ring = s('circle', { r: 0, class: 'map-dot-ring' });
   dots.append(ring);

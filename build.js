@@ -18,6 +18,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const vm = require('vm');
 
 const ROOT = __dirname;
 const APP_DIR = path.join(ROOT, 'app');
@@ -25,6 +26,128 @@ const CITIES = 'app/vendor/cities.js';   // stays an external sibling, lazy-load
 const ENTRY = 'app/main.js';
 const OUT = path.join(ROOT, 'index.html');
 const STARTER = path.join(ROOT, 'family.html');
+const QUESTIONS_SRC = path.join(APP_DIR, 'questions.js');
+const QUESTIONS_OUT = path.join(ROOT, 'questions.html');
+
+// ---- the printable question sheet -----------------------------------------
+// Reads app/questions.js (the same module the in-app Guide renders) and writes a
+// standalone questions.html: no scripts, no styles.css, nothing external, so it
+// prints cleanly and survives being emailed on its own.
+function readQuestions() {
+  const src = fs.readFileSync(QUESTIONS_SRC, 'utf8');
+  if (/^\s*import\s/m.test(src) || /^[ \t]*export\b(?!\s+const\b)/m.test(src)) {
+    console.error('build: app/questions.js must stay pure data (only `export const`, no imports) — this build evaluates it directly');
+    process.exit(1);
+  }
+  const q = vm.runInNewContext(
+    src.replace(/^[ \t]*export\s+const\s/gm, 'const ')
+      + '\n;({ lead: INTERVIEW_LEAD, craft: INTERVIEW_CRAFT, themes: INTERVIEW_THEMES, closer: INTERVIEW_CLOSER });',
+    Object.create(null), { filename: 'app/questions.js' });
+  for (const k of ['lead', 'craft', 'themes', 'closer']) {
+    if (!q[k]) { console.error(`build: app/questions.js is missing its ${k} export`); process.exit(1); }
+  }
+  return q;
+}
+
+const esc = (s) => String(s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+function buildQuestionsPage() {
+  const q = readQuestions();
+  // Inline the favicon too: this sheet should survive being emailed on its own.
+  const icon = 'data:image/svg+xml;base64,'
+    + fs.readFileSync(path.join(ROOT, 'icon.svg')).toString('base64');
+  const list = (items) => `<ul>${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
+  const block = (t) => `  <section class="theme">
+    <h2>${esc(t.title)}</h2>
+    <p class="note">${esc(t.note)}</p>
+    <h3>Start here</h3>
+    ${list(t.starters)}
+    <h3>Go deeper</h3>
+    ${list(t.deeper)}
+  </section>`;
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Questions worth asking · The Tree</title>
+  <meta name="description" content="A printable list of questions for interviewing family, grouped by theme, from The Tree.">
+  <link rel="icon" href="${icon}">
+  <style>
+:root {
+  --paper: #f5f4ef; --ink: #221f1a; --ink-soft: #4a4640; --ink-faint: #807a6e;
+  --hairline: #ddd8cc; --gold-deep: #74633a;
+  --serif: 'Iowan Old Style', 'Charter', 'Palatino Linotype', 'Hoefler Text', Palatino, Georgia, 'Times New Roman', serif;
+  --sans: ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 3rem 1.5rem 4rem; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: 1.05rem; line-height: 1.55;
+  font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
+  -webkit-text-size-adjust: 100%;
+}
+main { max-width: 40rem; margin: 0 auto; }
+h1 { font-size: 2rem; font-weight: 600; letter-spacing: -.01em; margin: 0 0 .5rem; }
+.lead { color: var(--ink-soft); margin: 0 0 .5rem; }
+.kicker { font-family: var(--sans); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold-deep); margin: 0 0 .75rem; }
+.craft { margin: 2rem 0 2.5rem; padding: 1.25rem 1.5rem; border: 1px solid var(--hairline); border-radius: 9px; background: #fbfaf6; }
+.craft h2, .theme h2 { font-size: 1.3rem; font-weight: 600; margin: 0 0 .75rem; }
+.craft ul { margin: 0; padding-left: 1.1rem; }
+.craft li { margin: 0 0 .5rem; color: var(--ink-soft); }
+.craft li strong, .theme li strong { color: var(--ink); }
+.theme { margin: 0 0 2.25rem; padding-top: 1.5rem; border-top: 1px solid var(--hairline); }
+.theme .note { font-family: var(--sans); font-size: .84rem; color: var(--ink-faint); margin: 0 0 1rem; }
+.theme h3 {
+  font-family: var(--sans); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--gold-deep); font-weight: 600; margin: 1.25rem 0 .5rem;
+}
+.theme ul { margin: 0; padding-left: 1.1rem; }
+.theme li { margin: 0 0 .45rem; }
+footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--hairline); font-family: var(--sans); font-size: .8rem; color: var(--ink-faint); }
+footer a { color: inherit; }
+@media print {
+  body { background: #fff; color: #000; padding: 0; font-size: 10.5pt; }
+  main { max-width: none; }
+  .craft { background: none; border-color: #999; break-inside: avoid; }
+  .theme { break-inside: avoid; border-top-color: #999; }
+  .theme h3, .kicker { color: #555; }
+  .theme .note { color: #444; }
+  h1, h2, h3 { break-after: avoid; }
+  footer { display: none; }
+  a { color: #000; text-decoration: none; }
+  @page { margin: 16mm; }
+}
+  </style>
+</head>
+<body>
+<main>
+  <p class="kicker">The Tree</p>
+  <h1>Questions worth asking</h1>
+  <p class="lead">${esc(q.lead)}</p>
+
+  <section class="craft">
+    <h2>Before you start</h2>
+    <ul>${q.craft.map((c) => `<li><strong>${esc(c.label)}:</strong> ${esc(c.text)}</li>`).join('')}</ul>
+  </section>
+
+${q.themes.map(block).join('\n\n')}
+
+  <section class="theme">
+    <h2>${esc(q.closer.title)}</h2>
+    <p class="note">${esc(q.closer.note)}</p>
+    ${list(q.closer.questions)}
+  </section>
+
+  <footer>Print this, or keep it open on a second device. The archive itself lives in your <code>family.html</code>.</footer>
+</main>
+</body>
+</html>
+`;
+}
 
 // ---- gather modules -------------------------------------------------------
 function walk(dir) {
@@ -168,8 +291,8 @@ const html = `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>The Tree — Family Archive</title>
-  <meta name="description" content="A private family history archive — stories, lessons, and the people behind them. The whole archive is this one file.">
+  <title>The Tree: Family Archive</title>
+  <meta name="description" content="A private family history archive: stories, lessons, and the people behind them. The whole archive is this one file.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg">
   <meta name="theme-color" content="#2b2823">
@@ -192,20 +315,41 @@ ${moduleTags}
 </html>
 `;
 
-fs.writeFileSync(OUT, html);
-fs.writeFileSync(STARTER, html); // a ready-to-use starter copy (identical empty archive)
+// ---- questions.html: the printable interview question list ----------------
+// One source of truth. app/questions.js is an ES module the Guide renders inside
+// the app; this build reads that same file to emit a standalone, self-contained
+// sheet to print or keep open on a second device while interviewing. The module is
+// pure data (no imports, no functions), so stripping `export` and evaluating it is
+// enough — and the guard in readQuestions() keeps it that way.
+const questionsHtml = buildQuestionsPage();
 
 // Stamp the service-worker cache name with a content hash, so any change to the
 // hosted shell auto-invalidates the old cache instead of serving a stale page.
-const hash = crypto.createHash('sha256').update(html).digest('hex').slice(0, 10);
+// The hash covers EVERY precached asset (the SW serves them cache-first with no
+// revalidation) — a gazetteer/manifest/icon-only change must invalidate too.
+const hash = crypto.createHash('sha256')
+  .update(html)
+  .update(questionsHtml)
+  .update(fs.readFileSync(path.join(ROOT, CITIES)))
+  .update(fs.readFileSync(path.join(ROOT, 'manifest.webmanifest')))
+  .update(fs.readFileSync(path.join(ROOT, 'icon.svg')))
+  .digest('hex').slice(0, 10);
 const swPath = path.join(ROOT, 'sw.js');
 const sw = fs.readFileSync(swPath, 'utf8');
 const newSw = sw.replace(/const CACHE = 'thetree-[^']+';/, `const CACHE = 'thetree-${hash}';`);
+
+// Everything above can still fail; nothing below can. Writing only once every byte
+// is computed keeps a bad run from leaving a fresh index.html paired with a stale
+// questions.html and an un-restamped sw.js, which would pin every installed client
+// to the old cache forever.
+fs.writeFileSync(OUT, html);
+fs.writeFileSync(STARTER, html); // a ready-to-use starter copy (identical empty archive)
+fs.writeFileSync(QUESTIONS_OUT, questionsHtml);
 if (newSw === sw && !/thetree-/.test(sw)) console.warn('build: could not find CACHE constant in sw.js to stamp');
 else if (newSw !== sw) fs.writeFileSync(swPath, newSw);
 
 const kb = (n) => (n / 1024).toFixed(0) + ' KB';
-console.log(`build: wrote ${rel(OUT)} and ${rel(STARTER)}`);
+console.log(`build: wrote ${rel(OUT)}, ${rel(STARTER)}, and ${rel(QUESTIONS_OUT)}`);
 console.log(`  modules inlined: ${order.length}  (entry: ${ENTRY})`);
 console.log(`  shell size: ${kb(Buffer.byteLength(html))}  (data/photos add to this; gazetteer ${CITIES} stays external)`);
 console.log(`  sw cache: thetree-${hash}  (auto-invalidates on every content change)`);

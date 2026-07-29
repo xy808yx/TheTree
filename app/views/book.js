@@ -31,8 +31,9 @@ function placeLine(p) {
   const bits = [];
   const b = p.data.birth, d = p.data.death;
   if (p.birth.display || (b && b.place)) bits.push('Born ' + [p.birth.display, b && b.place].filter(Boolean).join(', '));
-  if (p.death.display || (d && d.place)) bits.push('Died ' + [p.death.display, d && d.place].filter(Boolean).join(', '));
-  else if (p.data.living === true && p.birth.known) bits.push('Living');
+  // "living" typed in the Died field is a supported value — never print "Died Living".
+  if (!p.death.living && (p.death.display || (d && d.place))) bits.push('Died ' + [p.death.display, d && d.place].filter(Boolean).join(', '));
+  else if ((p.data.living === true || p.death.living) && p.birth.known) bits.push('Living');
   return bits.join('  ·  ');
 }
 
@@ -91,7 +92,7 @@ function entry(p) {
     ['Parents', store.parentsOf(p)],
     ['Spouses & partners', store.partnersOf(p)],
     ['Children', store.childrenOf(p)],
-    ['Siblings', store.siblingsOf(p)],
+    ['Siblings', store.allSiblingsOf(p).map((x) => ({ person: x.person, relation: x.label }))],
   ].filter(([, list]) => list.length);
   if (fam.length) {
     const dl = el('dl', { class: 'book-family' });
@@ -111,7 +112,7 @@ export function renderBook(view) {
   const toolbar = el('div', { class: 'book-toolbar' },
     el('div', { class: 'tree-crumb' }, 'A printable copy of the whole archive. Use “Save as PDF” to keep one forever.'),
     el('span', { style: { flex: '1' } }),
-    el('button', { class: 'btn btn-small', id: 'book-markdown', title: 'Every person and union as plain Markdown files, zipped and readable in any editor, forever.' }, 'Export Markdown'),
+    el('button', { class: 'btn btn-small', id: 'book-markdown', title: 'Every person and every marriage or partnership as plain Markdown files, zipped and readable in any editor, forever.' }, 'Export Markdown'),
     el('button', { class: 'btn btn-small', id: 'book-gedcom', title: 'For relatives on Ancestry, FamilySearch, or other genealogy software.' }, 'Export GEDCOM'),
     el('button', { class: 'btn btn-primary btn-small', onclick: () => window.print() }, 'Save as PDF / Print'));
 

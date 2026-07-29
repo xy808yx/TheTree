@@ -1,8 +1,9 @@
 // GEDCOM 5.5.1 export. Our model maps almost 1:1: each person -> INDI, each
 // union -> FAM (HUSB/WIFE/CHIL, MARR, DIV). Partial dates convert to GEDCOM date
-// phrases (ABT/BEF/AFT), stored coordinates become PLAC/MAP/LATI/LONG, and
-// adopted/step children carry a PEDI tag — so the archive opens cleanly in any
-// genealogy program. This is the payoff for modelling relationships GEDCOM-style.
+// phrases (ABT/BEF/AFT), stored coordinates become PLAC/MAP/LATI/LONG, adopted
+// children carry a PEDI tag and step relations a FAMC note — so the archive
+// opens cleanly in any genealogy program. This is the payoff for modelling
+// relationships GEDCOM-style.
 
 import { store, displayName } from './store.js';
 
@@ -53,12 +54,30 @@ function nameLines(out, p) {
   }
   const aka = n.also_known_as || [];
   if (aka.length) out.push(`2 NICK ${esc(aka.join(', '))}`);
-  if (n.maiden) out.push(`2 _MARNM ${esc(n.maiden)}`);
+  // The maiden name is the PRE-marriage name: a standard alternate NAME with
+  // TYPE maiden, not _MARNM (which means the name AFTER marriage — inverted).
+  if (n.maiden) {
+    out.push(`1 NAME ${esc(given)} /${esc(n.maiden)}/`.replace(/\s+\//, ' /'));
+    out.push('2 TYPE maiden');
+  }
 }
 
 function noteLines(out, text) {
+  // Chunk long lines with CONC so no physical line exceeds GEDCOM 5.5.1's
+  // 255-char limit (strict importers truncate or reject longer ones). Slice the
+  // RAW line at 120 before esc() — escaping doubles '@', so a longer raw chunk
+  // could re-break the limit. CONC splits mid-word on purpose: importers may
+  // trim spaces adjacent to a CONC break.
   const parts = String(text).replace(/\r/g, '').split('\n');
-  parts.forEach((line, i) => out.push(`${i === 0 ? '1 NOTE' : '2 CONT'} ${esc(line)}`));
+  parts.forEach((line, i) => {
+    let tag = i === 0 ? '1 NOTE' : '2 CONT';
+    let s = line;
+    do {
+      out.push(`${tag} ${esc(s.slice(0, 120))}`);
+      s = s.slice(120);
+      tag = '2 CONC';
+    } while (s);
+  });
 }
 
 export function buildGedcom() {
@@ -74,6 +93,7 @@ export function buildGedcom() {
   out.push('2 NAME The Tree');
   out.push('1 GEDC', '2 VERS 5.5.1', '2 FORM LINEAGE-LINKED');
   out.push('1 CHAR UTF-8');
+  out.push('1 SUBM @SUB1@'); // 5.5.1 requires a submitter; record is before TRLR
   out.push(`1 DATE ${today.getDate()} ${MON[today.getMonth()]} ${today.getFullYear()}`);
 
   for (const p of people) {
@@ -92,7 +112,9 @@ export function buildGedcom() {
       const rel = entry && entry.relation;
       if (rel === 'adopted') out.push('2 PEDI adopted');
       else if (rel === 'biological') out.push('2 PEDI birth');
-      else if (rel === 'step') out.push('2 PEDI foster'); // closest standard 5.5.1 value
+      // 5.5.1 has no PEDI value for step; 'foster' is a materially different
+      // claim, so record the truth in the FAMC's legal NOTE substructure.
+      else if (rel === 'step') out.push('2 NOTE Step relationship to this family');
     }
     // FAMS (unions this person is a partner in)
     for (const uid of p.data.unions || []) if (fam.has(uid)) out.push(`1 FAMS ${fam.get(uid)}`);
@@ -104,10 +126,15 @@ export function buildGedcom() {
   for (const u of unions) {
     out.push(`0 ${fam.get(u.id)} FAM`);
     const parts = (u.data.partners || []).map((id) => store.getPerson(id)).filter(Boolean);
-    // Prefer M->HUSB, F->WIFE; otherwise keep the recorded order.
+    // Prefer M->HUSB, F->WIFE. When only one role resolves by sex, keep it and
+    // fill just the empty slot — resetting both could export a man as WIFE.
     let husb = parts.find((p) => p.data.sex === 'M');
     let wife = parts.find((p) => p.data.sex === 'F');
-    if (!husb || !wife || husb === wife) { husb = parts[0]; wife = parts[1]; }
+    if (!husb && !wife) { husb = parts[0]; wife = parts[1]; }
+    else {
+      if (!husb) husb = parts.find((p) => p !== wife);
+      if (!wife) wife = parts.find((p) => p !== husb);
+    }
     if (husb) out.push(`1 HUSB ${indi.get(husb.id)}`);
     if (wife && wife !== husb) out.push(`1 WIFE ${indi.get(wife.id)}`);
 
@@ -127,6 +154,7 @@ export function buildGedcom() {
     if (notes) noteLines(out, notes);
   }
 
+  out.push('0 @SUB1@ SUBM', '1 NAME The Tree');
   out.push('0 TRLR');
   return out.join('\n') + '\n';
 }

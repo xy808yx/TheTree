@@ -14,7 +14,7 @@ import { sampleDocs, SAMPLE_FOCUS } from './sample-data.js';
 import {
   loadEmbedded, currentDocs, openArchiveFile, readArchiveFromHandle,
   saveArchive, pickSaveLocation, downloadArchive,
-  getSavedFileHandle, verifyPermission, canUseFilePickers,
+  getSavedFileHandle, forgetFileHandle, verifyPermission, canUseFilePickers,
 } from './archive.js';
 import { renderTree } from './views/tree.js';
 import { renderPerson } from './views/person.js';
@@ -86,11 +86,12 @@ function renderNav() {
   if (app.mode === 'archive') {
     const label = app.archiveName || 'family.html';
     right.append(
-      el('span', { class: 'archive-pill', title: app.file ? 'Saving in place to ' + label : 'Not saved to a file yet. Save downloads a copy' },
+      el('span', { class: 'archive-pill', title: app.file ? 'Saving in place to ' + label
+        : (canUseFilePickers() ? 'Not saved to a file yet. Save will ask where to keep it' : 'Not saved to a file yet. Save downloads a copy') },
         el('span', { class: 'dot' + (app.dirty ? ' is-dirty' : '') }),
         label, app.dirty ? el('span', { class: 'pill-flag', title: 'Unsaved changes' }, ' •') : null));
     right.append(el('button', { class: 'btn btn-small' + (app.dirty ? ' btn-primary' : ''), onclick: () => requestSave() },
-      app.file ? 'Save' : 'Save / download'));
+      (app.file || canUseFilePickers()) ? 'Save' : 'Save / download'));
   } else {
     right.append(el('span', { class: 'demo-pill', title: 'You are exploring sample data. Nothing you change is saved.' },
       el('span', { class: 'dot' }), 'Demo', el('span', { class: 'pill-more' }, ' · not saved')));
@@ -164,21 +165,24 @@ function enterArchive(docs, { file = null, name = 'family.html' } = {}) {
 
 function enterDemo() {
   store.loadDocs(sampleDocs());
-  app.mode = 'demo'; app.file = null; app.archiveName = ''; app.dirty = false; app.focus = SAMPLE_FOCUS;
+  app.mode = 'demo'; app.file = null; app.archiveName = ''; app.dirty = false; app.demoEdited = false; app.focus = SAMPLE_FOCUS;
   go(`#/tree/${SAMPLE_FOCUS}`);
   router();
 }
 
 function backToLanding() {
+  // Demo edits live only in memory — one stray click must not vaporize a session.
+  if (app.mode === 'demo' && app.demoEdited
+    && !confirm('Leave the demo? People and stories you added here are not saved and will be gone.')) return;
   store.clear();
-  app.mode = null; app.file = null; app.archiveName = ''; app.focus = null; app.dirty = false;
+  app.mode = null; app.file = null; app.archiveName = ''; app.focus = null; app.dirty = false; app.demoEdited = false;
   go('#/');
   router();
 }
 
 function startNewArchive() {
   store.clear();
-  app.mode = 'archive'; app.file = null; app.archiveName = 'family.html'; app.dirty = false; app.focus = null;
+  app.mode = 'archive'; app.file = null; app.archiveName = 'family.html'; app.dirty = false; app.demoEdited = false; app.focus = null;
   go('#/');
   router();
 }
@@ -210,6 +214,15 @@ async function reconnectSaved() {
     toast(`Opened “${savedFileHandle.name}”.`, { kind: 'success' });
   } catch (e) {
     console.error(e);
+    if (e && e.name === 'NotFoundError') {
+      // The remembered file was moved or deleted — clear the dead handle so the
+      // landing stops leading with an Open button that can only ever fail.
+      savedFileHandle = null;
+      forgetFileHandle().catch(() => {});
+      router();
+      toast('That file has moved or been deleted. Use "Open a family.html" to find it in its new location.', { kind: 'error', duration: 7000 });
+      return;
+    }
     toast('Couldn’t reopen that file: ' + (e.message || e), { kind: 'error' });
   }
 }
@@ -219,7 +232,16 @@ async function reconnectSaved() {
 // writes in place; the first save in the hosted editor asks once where the file
 // should live. Everywhere else it downloads a fresh copy. A failed write never
 // loses the edit — it stays in memory and the user is offered a download.
-async function requestSave({ silent = false } = {}) {
+//
+// Saves are chained: two overlapping writes each commit a whole snapshot, and
+// whichever close()s last wins the disk — unserialized, an older snapshot could
+// silently overwrite a newer one.
+let saveChain = Promise.resolve();
+function requestSave(opts) {
+  saveChain = saveChain.then(() => doSave(opts)).catch(() => {});
+}
+
+async function doSave({ silent = false } = {}) {
   if (app.mode !== 'archive') return;
   const docs = currentDocs();
   try {
@@ -228,12 +250,12 @@ async function requestSave({ silent = false } = {}) {
       savedFileHandle = app.file;
       app.archiveName = app.file.name;
     }
-    const result = await saveArchive(docs, { handle: app.file });
+    const result = await saveArchive(docs, { handle: app.file, name: app.archiveName });
     app.dirty = false;
     renderNav();
     if (!silent) {
       if (result.method === 'inplace') toast(`Saved to “${result.name}”.`, { kind: 'success' });
-      else toast('Saved. An updated family.html was downloaded. Keep this copy and back it up.', { kind: 'success', duration: 6000 });
+      else toast(`Saved. An updated “${result.name}” was downloaded. Keep this copy and back it up.`, { kind: 'success', duration: 6000 });
     }
   } catch (e) {
     if (e && e.name === 'AbortError') { // cancelled the save-location picker
@@ -303,9 +325,23 @@ async function boot() {
     if (detail.focus) { app.focus = detail.focus; go(`#/person/${detail.focus}`); }
     router();
     if (detail.persist) {
-      if (app.mode === 'archive') { app.dirty = true; renderNav(); requestSave(); }
-      else if (app.mode === 'demo') toast('Demo mode. Changes live only in this tab and aren’t saved.', { duration: 5000 });
+      if (app.mode === 'archive') {
+        app.dirty = true; renderNav();
+        // Only auto-save where writing in place is possible. On Safari/Firefox a
+        // save is a download — firing one per edit would rain family (N).html
+        // copies; there the dirty dot + the Save button make one deliberate copy.
+        if (app.file || canUseFilePickers()) requestSave();
+      } else if (app.mode === 'demo') {
+        app.demoEdited = true;
+        toast('Demo mode. Changes live only in this tab and aren’t saved.', { duration: 5000 });
+      }
     }
+  });
+
+  // Closing the tab with unsaved work (a dirty archive, or any demo-mode edits,
+  // which only ever live in memory) deserves the browser's leave-page prompt.
+  window.addEventListener('beforeunload', (e) => {
+    if (app.dirty || (app.mode === 'demo' && app.demoEdited)) { e.preventDefault(); e.returnValue = ''; }
   });
 
   if (embedded.length) {

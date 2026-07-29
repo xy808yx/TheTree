@@ -198,15 +198,18 @@ export async function pickSaveLocation(suggestedName = ARCHIVE_FILENAME) {
 
 // Save the whole archive. With a writable handle (hosted editor, secure context)
 // this overwrites the one file in place. Otherwise it downloads a fresh copy the
-// user keeps (standalone file://, Safari). Returns { method, name }.
-export async function saveArchive(docs, { handle } = {}) {
+// user keeps (standalone file://, Safari) — under the archive's own name, so an
+// opened "smith-family.html" never comes back renamed to family.html.
+// Returns { method, name }.
+export async function saveArchive(docs, { handle, name } = {}) {
   const html = buildArchiveHTML(docs);
   if (handle && (await verifyPermission(handle))) {
     await writeHandle(handle, html);
     return { method: 'inplace', name: handle.name };
   }
-  downloadArchive(docs);
-  return { method: 'download', name: ARCHIVE_FILENAME };
+  const n = name || ARCHIVE_FILENAME;
+  downloadArchive(docs, n);
+  return { method: 'download', name: n };
 }
 
 // ---------- photos → compressed data URIs ----------

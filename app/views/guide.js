@@ -5,9 +5,29 @@
 
 import { el, clear } from '../dom.js';
 import { APP_URL } from '../archive.js';
+import { INTERVIEW_LEAD, INTERVIEW_CRAFT, INTERVIEW_THEMES, INTERVIEW_CLOSER } from '../questions.js';
+
+// The printable sheet build.js writes from the same app/questions.js. Absolute, so
+// the link still works from a family.html sitting on someone's desktop.
+const QUESTIONS_URL = new URL('questions.html', APP_URL).href;
 
 function section(title, ...children) {
   return el('div', { class: 'guide-section' }, el('h2', {}, title), ...children);
+}
+
+// One theme of the interview list: collapsed by default, so the whole bank stays a
+// quiet stack of headings until you open the one the conversation is already near.
+// tiers is [label, questions] pairs; a tier with no questions is skipped.
+function questionTheme(title, note, tiers) {
+  return el('details', { class: 'collapse qa-theme' },
+    el('summary', {}, title),
+    el('div', { class: 'collapse-body' },
+      el('p', { class: 'qa-note' }, note),
+      ...tiers.map(([label, items]) => (items && items.length
+        ? el('div', { class: 'qa-tier' },
+          el('h3', { class: 'qa-tier-label' }, label),
+          el('ul', { class: 'qa-list' }, ...items.map((q) => el('li', {}, q))))
+        : null))));
 }
 
 export function renderGuide(view) {
@@ -49,6 +69,17 @@ export function renderGuide(view) {
         el('li', {}, el('strong', {}, 'Send the whole file'), ': AirDrop, email, or message ', el('code', {}, 'family.html'), ' to someone and they just open it. They get the full, living archive, no app needed.'),
         el('li', {}, el('strong', {}, 'A PDF book'), ', for the “safe parts” to hand around freely: open ', el('strong', {}, 'Book'), ' and choose Save as PDF. Print it, AirDrop it, or email it.'),
         el('li', {}, el('strong', {}, 'A GEDCOM or Markdown export'), ', from the ', el('strong', {}, 'Book'), ' page, for relatives who use Ancestry or FamilySearch (GEDCOM) or who just want the plain text files (Markdown).'))),
+
+    section('Interviewing family',
+      el('p', {}, INTERVIEW_LEAD),
+      el('ul', {},
+        ...INTERVIEW_CRAFT.map((c) => el('li', {}, el('strong', {}, c.label + ':'), ' ' + c.text))),
+      el('div', { class: 'qa-themes' },
+        ...INTERVIEW_THEMES.map((t) => questionTheme(t.title, t.note, [['Start here', t.starters], ['Go deeper', t.deeper]])),
+        questionTheme(INTERVIEW_CLOSER.title, INTERVIEW_CLOSER.note, [['Ask these last', INTERVIEW_CLOSER.questions]])),
+      el('p', { class: 'guide-note' },
+        el('a', { href: QUESTIONS_URL, target: '_blank', rel: 'noopener' }, 'Print the whole list'),
+        ' (a few pages to carry with you, or to keep open on a second device).')),
 
     section('Nothing is locked in',
       el('p', {},

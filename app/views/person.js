@@ -38,10 +38,13 @@ function lifeLines(p) {
     lines.push(el('div', {}, p.birth.display ? `Born ${p.birth.display}` : 'Born',
       d.birth && d.birth.place ? el('span', { class: 'profile-place' }, ` · ${d.birth.place}`) : null));
   }
-  if (p.death.display || (d.death && d.death.place)) {
+  if (p.death.living) {
+    // "living" typed in the Died field is a supported value — never "Died Living".
+    lines.push(el('div', {}, 'Living'));
+  } else if (p.death.display || (d.death && d.death.place)) {
     lines.push(el('div', {}, p.death.display ? `Died ${p.death.display}` : 'Died',
       d.death && d.death.place ? el('span', { class: 'profile-place' }, ` · ${d.death.place}`) : null));
-  } else if (d.living === true && p.birth.known) {
+  } else if (d.living === true) {
     lines.push(el('div', {}, 'Living'));
   }
   return lines;
@@ -116,7 +119,7 @@ export function renderPerson(view, id) {
     const list = el('ul', { class: 'lesson-list' });
     for (const l of lessons) {
       list.append(el('li', { class: 'lesson' + (l.kind === 'mistake' ? ' is-mistake' : '') },
-        el('p', { class: 'lesson-text' }, l.text),
+        el('p', { class: 'lesson-text' }, l.text || '(no detail)'),
         el('div', { class: 'lesson-meta' },
           el('span', { class: 'lesson-kind' }, l.kind === 'mistake' ? 'Mistake' : 'Lesson'),
           el('span', { class: 'lesson-theme' }, l.theme))));
@@ -128,13 +131,13 @@ export function renderPerson(view, id) {
   const parents = store.parentsOf(p);
   const partners = store.partnersOf(p);
   const children = store.childrenOf(p);
-  const siblings = store.siblingsOf(p);
+  const siblings = store.allSiblingsOf(p); // same traversal as the tree, half/step included
   const rel = el('div', { class: 'relations' });
   const groups = [
     group('Parents', parents.map((x) => personLink(x.person, x.relation))),
     group('Spouses & partners', partners.map((x) => personLink(x.person, unionNote(x.union)))),
     group('Children', children.map((x) => personLink(x.person, x.relation))),
-    group('Siblings', siblings.map((x) => personLink(x.person, x.relation))),
+    group('Siblings', siblings.map((x) => personLink(x.person, x.label))),
   ].filter(Boolean);
   if (groups.length) {
     wrap.append(el('hr', { class: 'section-rule' }), el('h3', { class: 'section-title' }, 'Family'));

@@ -68,6 +68,11 @@ export function parseDate(input) {
   const year = +iso[1];
   const month = iso[2] ? +iso[2] : null;
   const day = iso[3] ? +iso[3] : null;
+  // A mistyped month/day ("1938-13", "1961-31" with day where month goes) must
+  // fall back to the raw text, not index MONTHS out of range as "undefined 1938".
+  if ((month !== null && (month < 1 || month > 12)) || (day !== null && (day < 1 || day > 31))) {
+    return { raw, known: false, display: raw, qualifier };
+  }
   const precision = day ? 'day' : month ? 'month' : 'year';
 
   let sortKey = year + ((month ? month - 1 : 0) / 12) + ((day ? day - 1 : 0) / 372);
@@ -96,7 +101,9 @@ export function scanLessons(body) {
   if (!body) return out;
   for (const line of String(body).split(/\r?\n/)) {
     const m = stripBullet(line).match(LESSON_LINE);
-    if (m) out.push({ kind: m[1].toLowerCase(), theme: m[2].toLowerCase(), text: m[3].trim() });
+    // A bolded marker line ("**{lesson: x} Save early**") leaves closing emphasis
+    // on the captured text; lesson cards render plain text, so strip it.
+    if (m) out.push({ kind: m[1].toLowerCase(), theme: m[2].toLowerCase(), text: m[3].trim().replace(/[*_]+$/, '').trim() });
   }
   return out;
 }
@@ -107,7 +114,15 @@ export function storyProse(body) {
   if (!body) return '';
   const kept = [];
   for (const line of String(body).split(/\r?\n/)) {
-    if (LESSON_LINE.test(stripBullet(line))) continue;
+    // A marker can sit mid-line ("…built the store from nothing. {lesson: money} …");
+    // keep the prose before it instead of dropping the whole paragraph. Match the
+    // raw line so leading digits ("1902 was…") survive — stripBullet eats digits.
+    const m = line.match(LESSON_LINE);
+    if (m) {
+      const before = line.slice(0, m.index);
+      if (stripBullet(before).trim()) kept.push(before.trimEnd());
+      continue;
+    }
     if (/^#{1,6}\s*lessons?\b/i.test(line.trim())) continue;
     if (/^#{1,6}\s+story\s*$/i.test(line.trim())) continue;
     kept.push(line);
